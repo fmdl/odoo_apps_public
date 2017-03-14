@@ -26,10 +26,12 @@ D_LEDGER = {'general': {'name': 'General Ledger',
 class AccountExtraReport(models.AbstractModel):
     _name = 'report.account_standard_report.report_account_standard_report'
 
-    def _generate_sql(self, data, accounts, date_to, type_ledger):
+    def _generate_sql(self, data, accounts, date_to, date_from, type_ledger):
         date_clause = ''
         if date_to:
             date_clause += ' AND account_move_line.date <= ' + "'" + str(date_to) + "'" + ' '
+        if type_ledger == 'journal' and date_from:
+            date_clause += ' AND account_move_line.date >= ' + "'" + str(date_from) + "'" + ' '
 
         # clear used_context date if not it is use during the sql query
         data['form']['used_context']['date_to'] = False
@@ -165,7 +167,7 @@ class AccountExtraReport(models.AbstractModel):
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
         date_to_dt = datetime.strptime(date_to, DEFAULT_SERVER_DATE_FORMAT) if date_to else False
 
-        res = self._generate_sql(data, accounts, date_to, type_ledger)
+        res = self._generate_sql(data, accounts, date_to, date_from, type_ledger)
 
         lines_group_by = {}
         group_by_ids = []
@@ -195,13 +197,13 @@ class AccountExtraReport(models.AbstractModel):
                     move_matching_in_futur = True
 
                 add_init = True
-                if (r['a_type'] in ('payable', 'receivable') and not move_matching) or type_ledger == 'journal':
+                if r['a_type'] in ('payable', 'receivable') and not move_matching:
                     add_init = False
 
                 # add in initiale balance only the reconciled entries a
                 # and with a date less than date_from
                 if with_init_balance and date_from_dt and date_move_dt < date_from_dt and add_init:
-                    if r['include_initial_balance'] and type_ledger != 'journal':
+                    if r['include_initial_balance']:
                         if r['account_id'] in init_account.keys():
                             init_account[r['account_id']]['init_debit'] += r['debit']
                             init_account[r['account_id']]['init_credit'] += r['credit']
@@ -226,6 +228,7 @@ class AccountExtraReport(models.AbstractModel):
                     r['type_line'] = 'normal'
                     if date_from_dt and date_move_dt < date_from_dt:
                         r['type_line'] = 'init'
+                        r['code'] = 'INIT'
 
                     new_list.append(r)
 

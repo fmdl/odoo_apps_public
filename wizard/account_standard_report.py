@@ -26,10 +26,10 @@ class AccountStandardLedger(models.TransientModel):
     partner_ids = fields.Many2many(comodel_name='res.partner', string='Partners', domain=['|', ('is_company', '=', True), ('parent_id', '=', False)], help='If empty, get all partners')
     account_methode = fields.Selection([('include', 'Include'), ('exclude', 'Exclude')], string="Methode")
     account_in_ex_clude = fields.Many2many(comodel_name='account.account', string='Accounts', help='If empty, get all accounts')
-    with_init_balance = fields.Boolean('With Initial Balance at Start Date', default=False)
+    with_init_balance = fields.Boolean('With Initial Report at Start Date', default=False)
     sum_group_by_top = fields.Boolean('Sum on Top', default=False)
     sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True)
-    init_balance_history = fields.Boolean('On payable/receivable account the initial balance is with history.', default=False)
+    init_balance_history = fields.Boolean('Payable/receivable initial balance with history.', default=False)
 
     def _get_periode_date(self):
         lang_code = self.env.user.lang or 'en_US'
@@ -98,15 +98,12 @@ class AccountStandardLedger(models.TransientModel):
             self.reconciled = True
             self.with_init_balance = True
             self.partner_ids = False
-        if self.summary:
-            self.sum_group_by_top = True
-            self.sum_group_by_bottom = False
         data = self.pre_print_report(data)
         data['form'].update({'reconciled': self.reconciled,
                              'rem_futur_reconciled': self.rem_futur_reconciled,
                              'with_init_balance': self.with_init_balance,
                              'amount_currency': self.amount_currency,
-                             'sum_group_by_top': self.sum_group_by_top,
+                             'sum_group_by_top': self.summary or self.sum_group_by_top,
                              'sum_group_by_bottom': self.sum_group_by_bottom,
                              'type_ledger': self.type_ledger,
                              'summary': self.summary,

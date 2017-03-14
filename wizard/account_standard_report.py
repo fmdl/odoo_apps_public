@@ -26,7 +26,7 @@ class AccountStandardLedger(models.TransientModel):
     partner_ids = fields.Many2many(comodel_name='res.partner', string='Partners', domain=['|', ('is_company', '=', True), ('parent_id', '=', False)], help='If empty, get all partners')
     account_methode = fields.Selection([('include', 'Include'), ('exclude', 'Exclude')], string="Methode")
     account_in_ex_clude = fields.Many2many(comodel_name='account.account', string='Accounts to include', help='If empty, get all accounts')
-    with_init_balance = fields.Boolean('With Initial Balance at Start Date of reconcilled entries', default=False)
+    with_init_balance = fields.Boolean('With Initial Balance at Start Date', default=False)
     sum_group_by_top = fields.Boolean('Sum on Top', default=False)
     sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True)
     init_balance_history = fields.Boolean('On payable/receivable account the initial balance is with history.', default=False)
@@ -56,11 +56,6 @@ class AccountStandardLedger(models.TransientModel):
         return False
 
     periode_date = fields.Many2one('account.report.partner.ledger.periode', 'Periode', default=_get_periode_date, help="Auto complete Start and End date.")
-
-    @api.onchange('summary')
-    def on_change_summary(self):
-        if self.summary:
-            self.sum_group_by_top = True
 
     @api.onchange('account_in_ex_clude')
     def on_change_summary(self):
@@ -97,9 +92,9 @@ class AccountStandardLedger(models.TransientModel):
 
     # FIXME : find an other solution to pass context instead of rewrite this code
     def _print_report(self, data):
-        if self.date_from == False or self.reconciled == False:
+        if self.date_from == False:
             self.with_init_balance = False
-        if self.type_ledger in ('general', 'Journal'):
+        if self.type_ledger in ('general', 'journal'):
             self.reconciled = True
             self.with_init_balance = True
             self.partner_ids = False
@@ -120,6 +115,5 @@ class AccountStandardLedger(models.TransientModel):
                              'account_in_ex_clude': self.account_in_ex_clude.ids,
                              'init_balance_history': self.init_balance_history,
                              })
-        print(data)
         return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data=data)
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

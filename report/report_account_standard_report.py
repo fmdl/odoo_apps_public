@@ -26,7 +26,7 @@ D_LEDGER = {'general': {'name': 'General Ledger',
 class AccountExtraReport(models.AbstractModel):
     _name = 'report.account_standard_report.report_account_standard_report'
 
-    def _generate_sql(self, data, accounts, date_to=False):
+    def _generate_sql(self, data, accounts, date_to, type_ledger):
         date_clause = ''
         if date_to:
             date_clause += ' AND account_move_line.date <= ' + "'" + str(date_to) + "'" + ' '
@@ -39,6 +39,7 @@ class AccountExtraReport(models.AbstractModel):
         reconcile_clause = data['reconcile_clause']
         params = [tuple(data['computed']['move_state']), tuple(accounts.ids)] + query_get_data[2]
 
+        partner_clause = ''
         if data['form'].get('partner_ids'):
             partner_ids = data['form'].get('partner_ids')
             if len(partner_ids) == 1:
@@ -46,7 +47,7 @@ class AccountExtraReport(models.AbstractModel):
             else:
                 partner_ids = tuple(partner_ids)
             partner_clause = ' AND account_move_line.partner_id IN ' + str(partner_ids) + ' '
-        else:
+        elif type_ledger == 'partner':
             partner_clause = ' AND account_move_line.partner_id IS NOT NULL '
 
         query = """
@@ -83,7 +84,7 @@ class AccountExtraReport(models.AbstractModel):
             WHERE
                 m.state IN %s
                 AND account_move_line.account_id IN %s AND """ + query_get_data[1] + reconcile_clause + partner_clause + date_clause + """
-                ORDER BY account_move_line.date, move_name"""
+                ORDER BY account_move_line.date, move_name, a_code, account_move_line.ref"""
         self.env.cr.execute(query, tuple(params))
         return self.env.cr.dictfetchall()
 
@@ -110,15 +111,15 @@ class AccountExtraReport(models.AbstractModel):
             if float_is_zero(balance, rounding):
                 balance = 0.0
             if not init_balance_history and value['a_type'] in ('payable', 'receivable'):
-                if balance > 0.0:
+                if balance > 0:
                     init_debit = balance
-                    init_credit = 0.0
-                elif balance < 0.0:
-                    init_debit = 0.0
+                    init_credit = 0
+                elif balance < 0:
+                    init_debit = 0
                     init_credit = balance
                 else:
                     init_debit = 0
-                    init_debit = 0
+                    init_credit = 0
 
             if not float_is_zero(init_debit, rounding) or not float_is_zero(init_credit, rounding):
                 init.append({'date': 'Initial balance',
@@ -162,7 +163,8 @@ class AccountExtraReport(models.AbstractModel):
         date_to = data['form']['used_context']['date_to']
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
         date_to_dt = datetime.strptime(date_to, DEFAULT_SERVER_DATE_FORMAT) if date_to else False
-        res = self._generate_sql(data, accounts, date_to=date_to)
+
+        res = self._generate_sql(data, accounts, date_to, type_ledger)
 
         lines_group_by = {}
         group_by_ids = []
@@ -192,13 +194,13 @@ class AccountExtraReport(models.AbstractModel):
                     move_matching_in_futur = True
 
                 add_init = True
-                if r['a_type'] in ('payable', 'receivable') and not move_matching:
+                if (r['a_type'] in ('payable', 'receivable') and not move_matching) or type_ledger == 'journal':
                     add_init = False
 
                 # add in initiale balance only the reconciled entries a
                 # and with a date less than date_from
                 if with_init_balance and date_from_dt and date_move_dt < date_from_dt and add_init:
-                    if r['include_initial_balance']:
+                    if r['include_initial_balance'] and type_ledger != 'journal':
                         if r['account_id'] in init_account.keys():
                             init_account[r['account_id']]['init_debit'] += r['debit']
                             init_account[r['account_id']]['init_credit'] += r['credit']

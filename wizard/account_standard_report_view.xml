@@ -23,7 +23,7 @@
                     <group col="2">
                         <group>
                             <field name="date_from"/>
-                            <field name="with_init_balance" attrs="{'readonly': ['|', ('reconciled', '=', False), ('date_from', '=', False)]}"/>
+                            <field name="with_init_balance" attrs="{'readonly': ['|', ('date_from', '=', False), ('type_ledger', '!=', 'partner')]}"/>
                         </group>
                         <group>
                             <field name="date_to"/>

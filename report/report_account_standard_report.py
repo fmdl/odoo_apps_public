@@ -6,6 +6,22 @@ from odoo import api, models
 from odoo.tools import float_is_zero, float_compare
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 
+D_LEDGER = {'general': {'name': 'General Ledger',
+                        'group_by': 'account_id',
+                        'model': 'account.account',
+                        'short': 'code',
+                        },
+            'partner': {'name': 'Partner Ledger',
+                        'group_by': 'partner_id',
+                        'model': 'res.partner',
+                        'short': 'name',
+                        },
+            'journal': {'name': 'Journal Ledger',
+                        'group_by': 'journal_id',
+                        'model': 'account.journal',
+                        'short': 'code',
+                        }}
+
 
 class AccountExtraReport(models.AbstractModel):
     _name = 'report.account_standard_report.report_account_standard_report'
@@ -41,8 +57,10 @@ class AccountExtraReport(models.AbstractModel):
                 j.code,
                 acc.code AS a_code,
                 acc.name AS a_name,
+                acc_type.type AS a_type,
+                acc_type.include_initial_balance AS include_initial_balance,
                 account_move_line.ref,
-                m.name as move_name,
+                m.name AS move_name,
                 account_move_line.name,
                 account_move_line.debit,
                 account_move_line.credit,
@@ -52,10 +70,12 @@ class AccountExtraReport(models.AbstractModel):
                 afr.name AS matching_number,
                 afr_id.id AS matching_number_id,
                 account_move_line.partner_id,
-                account_move_line.account_id
+                account_move_line.account_id,
+                account_move_line.journal_id
             FROM """ + query_get_data[0] + """
                 LEFT JOIN account_journal j ON (account_move_line.journal_id = j.id)
                 LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+                LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
                 LEFT JOIN res_currency c ON (account_move_line.currency_id=c.id)
                 LEFT JOIN account_move m ON (m.id=account_move_line.move_id)
                 LEFT JOIN account_full_reconcile afr ON (afr.id=account_move_line.full_reconcile_id)
@@ -63,7 +83,7 @@ class AccountExtraReport(models.AbstractModel):
             WHERE
                 m.state IN %s
                 AND account_move_line.account_id IN %s AND """ + query_get_data[1] + reconcile_clause + partner_clause + date_clause + """
-                ORDER BY account_move_line.date"""
+                ORDER BY account_move_line.date, move_name"""
         self.env.cr.execute(query, tuple(params))
         return self.env.cr.dictfetchall()
 
@@ -80,7 +100,7 @@ class AccountExtraReport(models.AbstractModel):
             }
         return line_account
 
-    def _generate_init_balance_lines(self, init_account):
+    def _generate_init_balance_lines(self, init_account, init_balance_history):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         init = []
         for key, value in init_account.items():
@@ -89,6 +109,17 @@ class AccountExtraReport(models.AbstractModel):
             balance = init_debit - init_credit
             if float_is_zero(balance, rounding):
                 balance = 0.0
+            if not init_balance_history and value['a_type'] in ('payable', 'receivable'):
+                if balance > 0.0:
+                    init_debit = balance
+                    init_credit = 0.0
+                elif balance < 0.0:
+                    init_debit = 0.0
+                    init_credit = balance
+                else:
+                    init_debit = 0
+                    init_debit = 0
+
             if not float_is_zero(init_debit, rounding) or not float_is_zero(init_credit, rounding):
                 init.append({'date': 'Initial balance',
                              'date_maturity': '',
@@ -96,6 +127,7 @@ class AccountExtraReport(models.AbstractModel):
                              'credit': init_credit,
                              'code': '',
                              'a_code': value['a_code'],
+                             'move_name':'',
                              'account_id': key,
                              'displayed_name': '',
                              'progress': balance,
@@ -107,43 +139,47 @@ class AccountExtraReport(models.AbstractModel):
     def _generate_total(self, sum_debit, sum_credit, balance):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         return {'date': 'Total',
-                     'date_maturity': '',
-                     'debit': sum_debit,
-                     'credit': sum_credit,
-                     's_debit': False if float_is_zero(sum_debit, rounding) else True,
-                     's_credit': False if float_is_zero(sum_credit, rounding) else True,
-                     'code': '',
-                     'a_code': '',
-                     'account_id': '',
-                     'displayed_name': '',
-                     'progress': balance,
-                     'amount_currency': 0.0,
-                     'matching_number': '',
-                     'type_line': 'total',}
+                'date_maturity': '',
+                'debit': sum_debit,
+                'credit': sum_credit,
+                's_debit': False if float_is_zero(sum_debit, rounding) else True,
+                's_credit': False if float_is_zero(sum_credit, rounding) else True,
+                'code': '',
+                'move_name':'',
+                'a_code': '',
+                'account_id': '',
+                'displayed_name': '',
+                'progress': balance,
+                'amount_currency': 0.0,
+                'matching_number': '',
+                'type_line': 'total', }
 
-    def _generate_data(self, data, accounts, date_format):
+    def _generate_data(self, data, accounts, date_format, type_ledger):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         with_init_balance = data['form']['with_init_balance']
+        init_balance_history = data['form']['init_balance_history']
         date_from = data['form']['used_context']['date_from']
         date_to = data['form']['used_context']['date_to']
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
         date_to_dt = datetime.strptime(date_to, DEFAULT_SERVER_DATE_FORMAT) if date_to else False
         res = self._generate_sql(data, accounts, date_to=date_to)
 
-        line_partner = {}
-        partner_ids = []
+        lines_group_by = {}
+        group_by_ids = []
 
-        # ordered by partner
+        group_by = D_LEDGER[type_ledger]['group_by']
+
+        # ordered by group_by
         for line in res:
-            if line['partner_id'] in line_partner.keys():
-                line_partner[line['partner_id']]['lines'].append(line)
+            if line[group_by] in lines_group_by.keys():
+                lines_group_by[line[group_by]]['lines'].append(line)
             else:
-                line_partner.update({line['partner_id']: {'lines': [line],
-                                                          'new_lines': [], }})
+                lines_group_by.update({line[group_by]: {'lines': [line],
+                                                        'new_lines': [], }})
 
         line_account = self._generate_account_dict(accounts)
 
-        for partner, value in line_partner.items():
+        for group_by, value in lines_group_by.items():
             init_account = {}
             new_list = []
             for r in value['lines']:
@@ -155,23 +191,29 @@ class AccountExtraReport(models.AbstractModel):
                     move_matching = False
                     move_matching_in_futur = True
 
+                add_init = True
+                if r['a_type'] in ('payable', 'receivable') and not move_matching:
+                    add_init = False
+
                 # add in initiale balance only the reconciled entries a
                 # and with a date less than date_from
-                if with_init_balance and date_from_dt and date_move_dt < date_from_dt and move_matching:
-                    if r['account_id'] in init_account.keys():
-                        init_account[r['account_id']]['init_debit'] += r['debit']
-                        init_account[r['account_id']]['init_credit'] += r['credit']
-                    else:
-                        init_account[r['account_id']] = {'init_debit': r['debit'],
-                                                         'init_credit': r['credit'],
-                                                         'a_code': r['a_code'], }
+                if with_init_balance and date_from_dt and date_move_dt < date_from_dt and add_init:
+                    if r['include_initial_balance']:
+                        if r['account_id'] in init_account.keys():
+                            init_account[r['account_id']]['init_debit'] += r['debit']
+                            init_account[r['account_id']]['init_credit'] += r['credit']
+                        else:
+                            init_account[r['account_id']] = {'init_debit': r['debit'],
+                                                             'init_credit': r['credit'],
+                                                             'a_code': r['a_code'],
+                                                             'a_type': r['a_type'] }
 
                 else:
                     date_move = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
                     r['date'] = date_move.strftime(date_format)
                     r['date_maturity'] = datetime.strptime(r['date_maturity'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format)
                     r['displayed_name'] = '-'.join(
-                        r[field_name] for field_name in ('move_name', 'ref', 'name')
+                        r[field_name] for field_name in ('ref', 'name')
                         if r[field_name] not in (None, '', '/')
                     )
                     # if move is matching with the future then replace matching number par *
@@ -184,18 +226,18 @@ class AccountExtraReport(models.AbstractModel):
 
                     new_list.append(r)
 
-            init_balance_lines = self._generate_init_balance_lines(init_account)
+            init_balance_lines = self._generate_init_balance_lines(init_account, init_balance_history)
 
-            line_partner[partner]['new_lines'] = init_balance_lines + new_list
+            lines_group_by[group_by]['new_lines'] = init_balance_lines + new_list
 
-        # remove unused partner
-        for partner, value in line_partner.items():
+        # remove unused group_by
+        for group_by, value in lines_group_by.items():
             if not value['new_lines']:
-                del line_partner[partner]
+                del lines_group_by[group_by]
 
-        # compute sum by partner
+        # compute sum by group_by
         # compute sum by account
-        for partner, value in line_partner.items():
+        for group_by, value in lines_group_by.items():
             balance = 0.0
             sum_debit = 0.0
             sum_credit = 0.0
@@ -220,42 +262,34 @@ class AccountExtraReport(models.AbstractModel):
             if float_is_zero(balance, rounding):
                 balance = 0.0
 
-            if data['form']['sum_partner_bottom']:
-                line_partner[partner]['new_lines'].append(self._generate_total(sum_debit, sum_credit, balance))
+            if data['form']['sum_group_by_bottom']:
+                lines_group_by[group_by]['new_lines'].append(self._generate_total(sum_debit, sum_credit, balance))
 
-            line_partner[partner]['debit - credit'] = balance
-            line_partner[partner]['debit'] = sum_debit
-            line_partner[partner]['credit'] = sum_credit
+            lines_group_by[group_by]['debit - credit'] = balance
+            lines_group_by[group_by]['debit'] = sum_debit
+            lines_group_by[group_by]['credit'] = sum_credit
 
-            partner_ids.append(partner)
+            group_by_ids.append(group_by)
 
         # remove unused account
         for key, value in line_account.items():
             if value['active'] == False:
                 del line_account[key]
 
-        return line_partner, line_account, partner_ids
-
-    def _lines(self, data, partner):
-        return data['line_partner'][partner.id]['new_lines']
-
-    def _sum_partner(self, data, partner, field):
-        if field not in ['debit', 'credit', 'debit - credit']:
-            return
-        return data['line_partner'][partner.id][field]
+        return lines_group_by, line_account, group_by_ids
 
     def _account(self, data):
         return data['line_account'].values()
 
     @api.multi
     def render_html(self, docis, data):
-        print("render")
         lang_code = self.env.context.get('lang') or 'en_US'
-        date_format  = self.env['res.lang']._lang_get(lang_code).date_format
+        date_format = self.env['res.lang']._lang_get(lang_code).date_format
+        type_ledger = data['form']['type_ledger']
 
         data['reconcile_clause'], data['matching_in_futur'] = self._compute_reconcile_clause(data)
 
-        data['form']['name_report'] = self._get_name_report(data)
+        data['form']['name_report'] = self._get_name_report(data, type_ledger)
 
         data['computed'] = {}
         data['computed']['move_state'] = ['draft', 'posted']
@@ -263,30 +297,56 @@ class AccountExtraReport(models.AbstractModel):
             data['computed']['move_state'] = ['posted']
 
         accounts = self._search_account(data)
-        obj_partner = self.env['res.partner']
+        obj_group_by = self.env[D_LEDGER[type_ledger]['model']]
 
-        data['line_partner'], data['line_account'], partner_ids = self._generate_data(data, accounts, date_format)
+        data['lines_group_by'], data['line_account'], group_by_ids = self._generate_data(data, accounts, date_format, type_ledger)
 
-        partners = obj_partner.browse(partner_ids)
-        partners = sorted(partners, key=lambda x: (x.ref, x.name))
+        group_by_data = obj_group_by.browse(group_by_ids)
+        group_by_data = sorted(group_by_data, key=lambda x: x[D_LEDGER[type_ledger]['short']])
 
         data['form']['date_from'] = datetime.strptime(data['form']['date_from'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['form']['date_from'] else False
         data['form']['date_to'] = datetime.strptime(data['form']['date_to'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['form']['date_to'] else False
 
         docargs = {
-            'doc_ids': partner_ids,
-            'doc_model': self.env['res.partner'],
+            #'doc_ids': group_by_ids,
+            #'doc_model': self.env['res.group_by'],
+            'group_by_top': self._group_by_top,
             'data': data,
-            'docs': partners,
+            'docs': group_by_data,
             'time': time,
             'lines': self._lines,
-            'sum_partner': self._sum_partner,
+            'sum_group_by': self._sum_group_by,
             'accounts': self._account,
         }
         return self.env['report'].render('account_standard_report.report_account_standard_report', docargs)
 
-    def _search_account(self, data):
+    def _lines(self, data, group_by):
+        return data['lines_group_by'][group_by.id]['new_lines']
 
+    def _sum_group_by(self, data, group_by, field):
+        if field not in ['debit', 'credit', 'debit - credit']:
+            return
+        return data['lines_group_by'][group_by.id][field]
+
+    def _group_by_top(self, data, group_by, field):
+        type_ledger = data['form']['type_ledger']
+        if type_ledger in ('general', 'journal'):
+            code = group_by.code
+            name = group_by.name
+        elif type_ledger == 'partner':
+            if group_by.ref:
+                code = group_by.ref
+                name = group_by.name
+            else:
+                code = group_by.name
+                name = ''
+        if field == 'code':
+            return code or ''
+        if field == 'name':
+            return name or ''
+        return
+
+    def _search_account(self, data):
         type_ledger = data['form'].get('type_ledger')
         domain = [('deprecated', '=', False), ]
         if type_ledger == 'partner':
@@ -299,13 +359,13 @@ class AccountExtraReport(models.AbstractModel):
                 acc_type = ['payable', 'receivable']
             domain.append(('internal_type', 'in', acc_type))
 
-        account_include_ids = data['form'].get('account_include_ids'))
-        account_exclude_ids = data['form'].get('account_exclude_ids'))
-        if account_include_ids and not account_exclude_ids:
-            domain.append(('id', 'in', account_include_ids))
-        elif not account_include_ids and account_exclude_ids:
-            domain.append(('id', 'not in', account_exclude_ids))
-
+        account_in_ex_clude = data['form'].get('account_in_ex_clude')
+        acc_methode = data['form'].get('account_methode')
+        if account_in_ex_clude:
+            if acc_methode == 'include':
+                domain.append(('id', 'in', account_in_ex_clude))
+            elif acc_methode == 'exclude':
+                domain.append(('id', 'not in', account_in_ex_clude))
         return self.env['account.account'].search(domain)
 
     def _compute_reconcile_clause(self, data):
@@ -330,21 +390,21 @@ class AccountExtraReport(models.AbstractModel):
             AND aml.date > %s
             """
             self.env.cr.execute(query, params)
-            res =  self.env.cr.dictfetchall()
+            res = self.env.cr.dictfetchall()
             for r in res:
                 list_match_in_futur.append(r['id'])
 
             if list_match_in_futur and not data['form']['reconciled']:
                 if len(list_match_in_futur) == 1:
-                    list_match_in_futur_sql = "(%s)" %(list_match_in_futur[0])
+                    list_match_in_futur_sql = "(%s)" % (list_match_in_futur[0])
                 else:
                     list_match_in_futur_sql = str(tuple(list_match_in_futur))
                 reconcile_clause = ' AND (account_move_line.full_reconcile_id IS NULL OR account_move_line.full_reconcile_id IN ' + list_match_in_futur_sql + ')'
 
         return reconcile_clause, list_match_in_futur
 
-    def _get_name_report(self, data):
-        name = {'general':'General Ledger','partner':'Partner Ledger','journal':'Journal Ledger'}.get(data['form']['type_ledger'])
+    def _get_name_report(self, data, type_ledger):
+        name = D_LEDGER[type_ledger]['name']
         if data['form']['summary']:
             name += ' Summary'
         return name

@@ -29,7 +29,7 @@
                             <p t-if="data['form']['rem_futur_reconciled']">With entries matched with other entries dated after End Date.</p>
                         </div>
                     </div>
-                    <table class="table table-condensed">
+                    <table class="table table-condensed" t-if="data['form']['type_ledger'] == 'partner'">
                         <thead>
                             <tr>
                                 <th class="col-xs-1">Code</th>
@@ -68,6 +68,7 @@
                                 <th class="col-xs-1">Date</th>
                                 <th class="col-xs-1">JRNL</th>
                                 <th class="col-xs-1">Account</th>
+                                <th class="col-xs-1">Journal entries</th>
                                 <th class="col-xs-3">Ref</th>
                                 <th class="col-xs-1">Due Date</th>
                                 <th class="col-xs-1 text-right">Debit</th>
@@ -80,26 +81,25 @@
                         <t t-foreach="docs" t-as="o">
                             <tbody style="border-bottom: 1px solid;">
                                 <tr style="border-bottom: 1px solid #ddd;">
-                                    <td colspan="5" t-if="o.ref != False">
-                                        <strong t-esc="o.ref"/>
-                                        - <strong t-esc="o.name"/>
+                                    <td colspan="2">
+                                        <strong t-esc="group_by_top(data, o, 'code')"/>
                                     </td>
-                                    <td colspan="5" t-if="o.ref == False">
-                                        <strong t-esc="o.name"/>
-                                    </td>
-                                    <td class="text-right">
-                                        <strong t-if="data['form']['sum_partner_top']" t-esc="sum_partner(data, o, 'debit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    <td colspan="4">
+                                        <strong t-esc="group_by_top(data, o, 'name')"/>
                                     </td>
                                     <td class="text-right">
-                                        <strong t-if="data['form']['sum_partner_top']" t-esc="sum_partner(data, o, 'credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="data['form']['sum_group_by_top']" t-esc="sum_group_by(data, o, 'debit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
                                     <td class="text-right">
-                                        <strong t-if="data['form']['sum_partner_top']" t-esc="sum_partner(data, o, 'debit - credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="data['form']['sum_group_by_top']" t-esc="sum_group_by(data, o, 'credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <strong t-if="data['form']['sum_group_by_top']" t-esc="sum_group_by(data, o, 'debit - credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
                                     <td t-if="amount_currency"> </td>
                                     <td> </td>
                                 </tr>
-                                <tr t-foreach="lines(data, o)" t-as="line">
+                                <tr t-foreach="lines(data, o)" t-as="line" t-if="data['form']['summary'] == False">
                                     <td>
                                         <i t-if="line['type_line'] == 'init'" t-esc="line['date']"></i>
                                         <strong t-if="line['type_line'] == 'total'" t-esc="line['date']"></strong>
@@ -112,6 +112,10 @@
                                     <td>
                                         <i t-if="line['type_line'] == 'init'" t-esc="line['a_code']"></i>
                                         <span t-if="line['type_line'] == 'normal'" t-esc="line['a_code']"></span>
+                                    </td>
+                                    <td>
+                                        <i t-if="line['type_line'] == 'init'" t-esc="line['move_name']"></i>
+                                        <span t-if="line['type_line'] == 'normal'" t-esc="line['move_name']"></span>
                                     </td>
                                     <td>
                                         <i t-if="line['type_line'] == 'init'" t-esc="line['displayed_name']"></i>

@@ -88,10 +88,10 @@
                                         <strong t-esc="group_by_top(data, o, 'name')"/>
                                     </td>
                                     <td class="text-right">
-                                        <strong t-if="data['form']['sum_group_by_top']" t-esc="sum_group_by(data, o, 'debit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="data['form']['sum_group_by_top'] and sum_group_by(data, o, 's_debit')" t-esc="sum_group_by(data, o, 'debit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
                                     <td class="text-right">
-                                        <strong t-if="data['form']['sum_group_by_top']" t-esc="sum_group_by(data, o, 'credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="data['form']['sum_group_by_top'] and sum_group_by(data, o, 's_credit')" t-esc="sum_group_by(data, o, 'credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
                                     <td class="text-right">
                                         <strong t-if="data['form']['sum_group_by_top']" t-esc="sum_group_by(data, o, 'debit - credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>

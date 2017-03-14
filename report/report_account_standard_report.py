@@ -159,6 +159,7 @@ class AccountExtraReport(models.AbstractModel):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         with_init_balance = data['form']['with_init_balance']
         init_balance_history = data['form']['init_balance_history']
+        summary = data['form']['summary']
         date_from = data['form']['used_context']['date_from']
         date_to = data['form']['used_context']['date_to']
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
@@ -267,6 +268,8 @@ class AccountExtraReport(models.AbstractModel):
             if data['form']['sum_group_by_bottom']:
                 lines_group_by[group_by]['new_lines'].append(self._generate_total(sum_debit, sum_credit, balance))
 
+            lines_group_by[group_by]['s_debit'] = False if float_is_zero(sum_debit, rounding) else True
+            lines_group_by[group_by]['s_credit'] = False if float_is_zero(sum_credit, rounding) else True
             lines_group_by[group_by]['debit - credit'] = balance
             lines_group_by[group_by]['debit'] = sum_debit
             lines_group_by[group_by]['credit'] = sum_credit
@@ -326,7 +329,7 @@ class AccountExtraReport(models.AbstractModel):
         return data['lines_group_by'][group_by.id]['new_lines']
 
     def _sum_group_by(self, data, group_by, field):
-        if field not in ['debit', 'credit', 'debit - credit']:
+        if field not in ['debit', 'credit', 'debit - credit', 's_debit','s_credit']:
             return
         return data['lines_group_by'][group_by.id][field]
 

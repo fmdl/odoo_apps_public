@@ -25,7 +25,7 @@ class AccountStandardLedger(models.TransientModel):
     rem_futur_reconciled = fields.Boolean('With entries matched with other entries dated after End Date.', default=False, help="Reconciled Entries matched with futur is considered like unreconciled. Matching number in futur is replace by *.")
     partner_ids = fields.Many2many(comodel_name='res.partner', string='Partners', domain=['|', ('is_company', '=', True), ('parent_id', '=', False)], help='If empty, get all partners')
     account_methode = fields.Selection([('include', 'Include'), ('exclude', 'Exclude')], string="Methode")
-    account_in_ex_clude = fields.Many2many(comodel_name='account.account', string='Accounts to include', help='If empty, get all accounts')
+    account_in_ex_clude = fields.Many2many(comodel_name='account.account', string='Accounts', help='If empty, get all accounts')
     with_init_balance = fields.Boolean('With Initial Balance at Start Date', default=False)
     sum_group_by_top = fields.Boolean('Sum on Top', default=False)
     sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True)

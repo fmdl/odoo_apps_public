@@ -30,6 +30,7 @@ class AccountStandardLedger(models.TransientModel):
     sum_group_by_top = fields.Boolean('Sum on Top', default=False)
     sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True)
     init_balance_history = fields.Boolean('Payable/receivable initial balance with history.', default=False)
+    detail_unreconcillied_in_init = fields.Boolean('Detail of un-reconcillied payable/receivable move in initiale balance.', default=True)
 
     def _get_periode_date(self):
         lang_code = self.env.user.lang or 'en_US'
@@ -111,6 +112,7 @@ class AccountStandardLedger(models.TransientModel):
                              'account_methode': self.account_methode,
                              'account_in_ex_clude': self.account_in_ex_clude.ids,
                              'init_balance_history': self.init_balance_history,
+                             'detail_unreconcillied_in_init': self.detail_unreconcillied_in_init,
                              })
         return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data=data)
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

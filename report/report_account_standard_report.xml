@@ -58,7 +58,7 @@
                                     <td class="text-right">
                                         <span t-esc="account['credit']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
-                                    <td class="text-right">
+                                    <td class="text-right" style="white-space:nowrap">
                                         <span t-esc="account['balance']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
                                 </tr>
@@ -78,7 +78,7 @@
                                 <th class="col-xs-1 text-right">Balance</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody style="white-space:nowrap">
                             <tr>
                                 <td class="text-right" colspan="5">
                                     <span t-esc="data['open_data']['debit']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
@@ -126,7 +126,7 @@
                                     <td class="text-right">
                                         <strong t-if="data['form']['sum_group_by_top'] and sum_group_by(data, o, 's_credit')" t-esc="sum_group_by(data, o, 'credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
-                                    <td class="text-right">
+                                    <td class="text-right" style="white-space:nowrap">
                                         <strong t-if="data['form']['sum_group_by_top']" t-esc="sum_group_by(data, o, 'debit - credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
                                     <td t-if="amount_currency"></td>
@@ -172,7 +172,7 @@
                                         <i t-if="line['s_credit'] and line['type_line'] == 'init'" t-esc="line['credit']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                         <strong t-if="line['s_credit'] and line['type_line'] == 'total'" t-esc="line['credit']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
-                                    <td class="text-right">
+                                    <td class="text-right" style="white-space:nowrap">
                                         <span t-esc="line['progress']" t-if="line['type_line'] == 'normal'" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                         <i t-esc="line['progress']" t-if="line['type_line'] == 'init'" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                         <strong t-esc="line['progress']" t-if="line['type_line'] == 'total'" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>

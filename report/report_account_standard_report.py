@@ -116,12 +116,19 @@ class AccountExtraReport(models.AbstractModel):
         init_lines = {}
         for r in init_lines_to_compact:
             key = (r['account_id'], r[group_by_field])
+            reduce_balance = r['reduce_balance'] and not init_balance_history
             if key in init_lines.keys():
-                init_lines[key]['debit'] += r['debit']
-                init_lines[key]['credit'] += r['credit']
+                if reduce_balance:
+                    init_lines[key]['re_debit'] += r['debit']
+                    init_lines[key]['re_credit'] += r['credit']
+                else:
+                    init_lines[key]['debit'] += r['debit']
+                    init_lines[key]['credit'] += r['credit']
             else:
-                init_lines[key] = {'debit': r['debit'],
-                                   'credit': r['credit'],
+                init_lines[key] = {'debit': r['debit'] if not reduce_balance else 0,
+                                   'credit': r['credit'] if not reduce_balance else 0,
+                                   're_debit': r['debit'] if reduce_balance else 0,
+                                   're_credit': r['credit'] if reduce_balance else 0,
                                    'account_id': r['account_id'],
                                    group_by_field: r[group_by_field],
                                    'a_code': r['a_code'],
@@ -131,25 +138,20 @@ class AccountExtraReport(models.AbstractModel):
             init_debit = value['debit']
             init_credit = value['credit']
             balance = init_debit - init_credit
+            re_balance = value['re_debit'] - value['re_credit']
             if float_is_zero(balance, rounding):
                 balance = 0.0
-            if not init_balance_history and value['a_type'] in ('payable', 'receivable'):
-                if balance > 0:
-                    init_debit = balance
-                    init_credit = 0
-                elif balance < 0:
-                    init_debit = 0
-                    init_credit = balance
-                else:
-                    init_debit = 0
-                    init_credit = 0
+            if re_balance > 0:
+                init_debit += abs(re_balance)
+            elif re_balance < 0:
+                init_credit += abs(re_balance)
 
             if not float_is_zero(init_debit, rounding) or not float_is_zero(init_credit, rounding):
                 init.append({'date': 'Initial balance',
                              'date_maturity': '',
                              'debit': init_debit,
                              'credit': init_credit,
-                             'code': '',
+                             'code': 'INIT',
                              'a_code': value['a_code'],
                              'move_name': '',
                              'account_id': value['account_id'],
@@ -188,6 +190,7 @@ class AccountExtraReport(models.AbstractModel):
         summary = data['form']['summary']
         date_from = data['form']['used_context']['date_from']
         date_to = data['form']['used_context']['date_to']
+        detail_unreconcillied_in_init = data['form']['detail_unreconcillied_in_init']
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
         date_to_dt = datetime.strptime(date_to, DEFAULT_SERVER_DATE_FORMAT) if date_to else False
         date_init_dt = self._generate_date_init(date_from_dt)
@@ -217,26 +220,9 @@ class AccountExtraReport(models.AbstractModel):
             # Cas 3 : après la date_from
             #       -> pour affichage
 
-
-            # move_matching = True if r['matching_number_id'] else False
-            # move_matching_after_init = True if r['matching_number_id'] in data['list_match_after_init'] else False
-            # move_matching_in_futur = False
-            # if r['matching_number_id'] in data['matching_in_futur'] and move_matching_after_init:
-            #     move_matching = False
-            #     move_matching_in_futur = True
-            #
-            # add_init = True
-            # if r['a_type'] in ('payable', 'receivable') and not move_matching:
-            #     add_init = False
-
-            # add in initiale balance only the reconciled entries a
-            # and with a date less than date_from
-            #if with_init_balance and date_from_dt and date_move_dt < date_from_dt and add_init:
-
-
             add_in = 'view'
             if with_init_balance:
-                if r['a_type'] in ('payable', 'receivable'):
+                if r['a_type'] in ('payable', 'receivable') and detail_unreconcillied_in_init:
                     if not r['matching_number_id']:
                         matched_in_future = False
                         matched_after_init = False
@@ -261,8 +247,11 @@ class AccountExtraReport(models.AbstractModel):
                 else:
                     add_in = 'view'
 
+            r['reduce_balance'] = False
             if add_in == 'init':
                 init_lines_to_compact.append(r)
+                if r['a_type'] in ('payable', 'receivable') and date_move_dt < date_init_dt:
+                    r['reduce_balance'] = True
             elif add_in == 'view':
                 date_move = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
                 r['date'] = date_move.strftime(date_format)
@@ -286,8 +275,7 @@ class AccountExtraReport(models.AbstractModel):
                     new_list.append(r)
 
         init_balance_lines = self._generate_init_balance_lines(type_ledger, init_lines_to_compact, init_balance_history)
-        # if type_ledger == 'open':
-        #    all_lines = init_balance_lines
+
         if type_ledger == 'journal':
             all_lines = new_list
         else:

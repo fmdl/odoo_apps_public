@@ -18,7 +18,7 @@ class AccountStandardLedger(models.TransientModel):
     _name = "account.report.standard.ledger"
     _description = "Account Standard Ledger"
 
-    type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger')], string='Type', default='general', required=True)
+    type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger'), ('open', 'Open Ledger')], string='Type', default='general', required=True)
     summary = fields.Boolean('Summary', dafault=False)
     amount_currency = fields.Boolean("With Currency", help="It adds the currency column on report if the currency differs from the company currency.")
     reconciled = fields.Boolean('With Reconciled Entries')
@@ -30,6 +30,7 @@ class AccountStandardLedger(models.TransientModel):
     sum_group_by_top = fields.Boolean('Sum on Top', default=False)
     sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True)
     init_balance_history = fields.Boolean('Payable/receivable initial balance with history.', default=False)
+    detail_unreconcillied_in_init = fields.Boolean('Detail of un-reconcillied payable/receivable move in initiale balance.', default=True)
 
     def _get_periode_date(self):
         lang_code = self.env.user.lang or 'en_US'
@@ -66,11 +67,11 @@ class AccountStandardLedger(models.TransientModel):
 
     @api.onchange('type_ledger')
     def on_change_type_ledger(self):
-        if self.type_ledger in ('general', 'journal'):
+        if self.type_ledger != 'partner':
             self.reconciled = True
             self.with_init_balance = True
-            return {'domain': {'account_in_ex_clude': [('internal_type', 'in', ('receivable', 'payable'))]}}
-        return {'domain': {'account_in_ex_clude': []}}
+            return {'domain': {'account_in_ex_clude': []}}
+        return {'domain': {'account_in_ex_clude': [('internal_type', 'in', ('receivable', 'payable'))]}}
 
     @api.onchange('periode_date')
     def on_change_periode_date(self):
@@ -94,7 +95,7 @@ class AccountStandardLedger(models.TransientModel):
     def _print_report(self, data):
         if self.date_from == False:
             self.with_init_balance = False
-        if self.type_ledger in ('general', 'journal'):
+        if self.type_ledger != 'partner':
             self.reconciled = True
             self.with_init_balance = True
             self.partner_ids = False
@@ -111,6 +112,7 @@ class AccountStandardLedger(models.TransientModel):
                              'account_methode': self.account_methode,
                              'account_in_ex_clude': self.account_in_ex_clude.ids,
                              'init_balance_history': self.init_balance_history,
+                             'detail_unreconcillied_in_init': self.detail_unreconcillied_in_init,
                              })
         return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data=data)
 # vim:expandtab:smartindent:tabstop=4:softtabstop=4:shiftwidth=4:

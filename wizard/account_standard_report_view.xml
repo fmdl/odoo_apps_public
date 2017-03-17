@@ -49,6 +49,7 @@
                         <field name="sum_group_by_top" attrs="{'readonly': [('summary', '=', True)]}"/>
                         <field name="sum_group_by_bottom" attrs="{'readonly': [('summary', '=', True)]}"/>
                         <field name="init_balance_history"/>
+                        <field name="detail_unreconcillied_in_init"/>
                     </group>
                 </form>
             </field>

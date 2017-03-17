@@ -7,7 +7,7 @@ from odoo.tools import float_is_zero, float_compare
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 
 
-class AccountExtraReport(models.AbstractModel):
+class AccountStandardReport(models.AbstractModel):
     _name = 'report.account_standard_report.report_account_standard_report'
 
     @api.multi
@@ -30,11 +30,11 @@ class AccountExtraReport(models.AbstractModel):
         return data['line_account'].values()
 
     def _lines(self, data, group_by):
-        return data['lines_group_by'].get(str(group_by.id)).['new_lines']
+        return data['lines_group_by'][str(group_by.id)]['new_lines']
 
     def _sum_group_by(self, data, group_by, field):
         print(data['lines_group_by'])
-        return data['lines_group_by'].get(str(group_by.id)).[field]
+        return data['lines_group_by'][str(group_by.id)][field]
 
     def _group_by_top(self, data, group_by, field):
         type_ledger = data['type_ledger']

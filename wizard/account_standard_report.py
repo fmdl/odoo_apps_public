@@ -125,8 +125,6 @@ class AccountStandardLedger(models.TransientModel):
 
     def print_pdf_report(self):
         data = self.pre_print_report()
-        print("cool 1", data)
-
         return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data=data)
 
     def pre_compute_form(self):
@@ -161,56 +159,214 @@ class AccountStandardLedger(models.TransientModel):
             'target_move': self.target_move,
             'used_context': {},
         })
-        data['used_context'].update({
-            'journal_ids': self.journal_ids.ids,
-            'state': self.target_move,
-            'date_from': self.date_from,
-            'date_to': self.date_to,
-        })
         lang_code = self.env.context.get('lang') or 'en_US'
         date_format = self.env['res.lang']._lang_get(lang_code).date_format
-        type_ledger = data['type_ledger']
 
-        data['name_report'] = self._get_name_report(data, type_ledger)
+        data['lines_group_by'], data['line_account'], data['group_by_data'], data['open_data'] = self._generate_data(data, date_format)
 
-        data['computed'] = {}
-        data['computed']['move_state'] = ['draft', 'posted']
-        if data.get('target_move', 'all') == 'posted':
-            data['computed']['move_state'] = ['posted']
-
-        accounts = self._search_account(data)
-
-        data['lines_group_by'], data['line_account'], data['group_by_data'], data['open_data'] = self._generate_data(type_ledger, data, accounts, date_format)
-
+        data['name_report'] = self._get_name_report()
         data['date_from'] = datetime.strptime(data['date_from'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_from'] else False
         data['date_to'] = datetime.strptime(data['date_to'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_to'] else False
 
         return data
 
-    def _generate_sql(self, type_ledger, data, accounts, date_to, date_from):
+    def _generate_data(self, data, date_format):
+        rounding = self.env.user.company_id.currency_id.rounding or 0.01
+        with_init_balance = self.with_init_balance
+        init_balance_history = self.init_balance_history
+        summary = self.summary
+        date_from = self.date_from
+        date_to = self.date_to
+        type_ledger = self.type_ledger
+        detail_unreconcillied_in_init = self.detail_unreconcillied_in_init
+        date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
+        date_to_dt = datetime.strptime(date_to, DEFAULT_SERVER_DATE_FORMAT) if date_to else False
+        date_init_dt = self._generate_date_init(date_from_dt)
+        date_init = date_init_dt.strftime(DEFAULT_SERVER_DATE_FORMAT) if date_init_dt else False
+        accounts = self._search_account()
+
+        reconcile_clause, matching_in_futur, list_match_after_init = self._compute_reconcile_clause(date_init_dt)
+
+        res = self._generate_sql(type_ledger, data, accounts, reconcile_clause, date_to, date_from)
+
+        lines_group_by = {}
+        group_by_ids = []
+        group_by_field = D_LEDGER[type_ledger]['group_by']
+        line_account = self._generate_account_dict(accounts)
+
+        init_lines_to_compact = []
+        new_list = []
+        for r in res:
+            date_move_dt = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
+
+            # Cas 1 : avant la date d'ouverture et, 401 non lettré avant la date d'ouverture
+            #       si compte avec balance initiale
+            #       -> pour calcul d'init
+            #       sinon
+            #       -> perdu
+            # Cas 2 : entre la date d'ouverture et date_from, et 401 non lettré avant dat_to
+            #       -> pour calcul d'init
+            # Cas 3 : après la date_from
+            #       -> pour affichage
+
+            add_in = 'view'
+            if with_init_balance:
+                if r['a_type'] in ('payable', 'receivable') and detail_unreconcillied_in_init:
+                    if not r['matching_number_id']:
+                        matched_in_future = False
+                        matched_after_init = False
+                    else:
+                        matched_after_init = True
+                        matched_in_future = True
+                        if r['matching_number_id'] in matching_in_futur:
+                            matched_in_future = False
+                        if r['matching_number_id'] in list_match_after_init:
+                            matched_after_init = False
+                else:
+                    matched_after_init = True
+                    matched_in_future = True
+
+                if date_move_dt < date_init_dt and matched_after_init:
+                    if r['include_initial_balance']:
+                        add_in = 'init'
+                    else:
+                        add_in = 'not add'
+                elif date_move_dt >= date_init_dt and date_from_dt and date_move_dt < date_from_dt and matched_in_future:
+                    add_in = 'init'
+                else:
+                    add_in = 'view'
+
+            r['reduce_balance'] = False
+            if add_in == 'init':
+                init_lines_to_compact.append(r)
+                if r['a_type'] in ('payable', 'receivable') and date_move_dt < date_init_dt:
+                    r['reduce_balance'] = True
+            elif add_in == 'view':
+                date_move = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
+                r['date'] = date_move.strftime(date_format)
+                r['date_maturity'] = datetime.strptime(r['date_maturity'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format)
+                r['displayed_name'] = '-'.join(
+                    r[field_name] for field_name in ('ref', 'name')
+                    if r[field_name] not in (None, '', '/')
+                )
+                # if move is matching with the future then replace matching number par *
+                if r['matching_number_id'] in matching_in_futur:
+                    r['matching_number'] = '*'
+
+                r['type_line'] = 'normal'
+                append_r = True if not type_ledger == 'open' else False
+                if date_from_dt and date_move_dt < date_from_dt:
+                    r['type_line'] = 'init'
+                    r['code'] = 'INIT'
+                    append_r = True
+
+                if append_r:
+                    new_list.append(r)
+
+        init_balance_lines = self._generate_init_balance_lines(type_ledger, init_lines_to_compact, init_balance_history)
+
+        if type_ledger == 'journal':
+            all_lines = new_list
+        else:
+            all_lines = init_balance_lines + new_list
+
+        for r in all_lines:
+            if r[group_by_field] in lines_group_by.keys():
+                lines_group_by[r[group_by_field]]['new_lines'].append(r)
+            else:
+                lines_group_by[r[group_by_field]] = {'new_lines': [r], }
+
+        # remove unused group_by
+        for group_by, value in lines_group_by.items():
+            if not value['new_lines']:
+                del lines_group_by[group_by]
+
+        open_debit = 0
+        open_credit = 0
+        # compute sum by group_by
+        # compute sum by account
+        for group_by, value in lines_group_by.items():
+            balance = 0.0
+            sum_debit = 0.0
+            sum_credit = 0.0
+            for r in value['new_lines']:
+                balance += r['debit'] - r['credit']
+                r['progress'] = balance
+                if float_is_zero(balance, rounding):
+                    r['progress'] = 0.0
+
+                sum_debit += r['debit']
+                sum_credit += r['credit']
+                open_debit += r['debit']
+                open_credit += r['credit']
+
+                r['s_debit'] = False if float_is_zero(r['debit'], rounding) else True
+                r['s_credit'] = False if float_is_zero(r['credit'], rounding) else True
+
+                line_account[r['account_id']]['debit'] += r['debit']
+                line_account[r['account_id']]['credit'] += r['credit']
+                line_account[r['account_id']]['active'] = True
+                line_account[r['account_id']]['balance'] += r['debit'] - r['credit']
+
+            balance = sum_debit - sum_credit
+            if float_is_zero(balance, rounding):
+                balance = 0.0
+
+            if data['sum_group_by_bottom']:
+                lines_group_by[group_by]['new_lines'].append(self._generate_total(sum_debit, sum_credit, balance))
+
+            lines_group_by[group_by]['s_debit'] = False if float_is_zero(sum_debit, rounding) else True
+            lines_group_by[group_by]['s_credit'] = False if float_is_zero(sum_credit, rounding) else True
+            lines_group_by[group_by]['debit - credit'] = balance
+            lines_group_by[group_by]['debit'] = sum_debit
+            lines_group_by[group_by]['credit'] = sum_credit
+
+            group_by_ids.append(group_by)
+
+        # remove unused account
+        for key, value in line_account.items():
+            if value['active'] == False:
+                del line_account[key]
+
+        open_balance = open_debit - open_credit
+        if float_is_zero(open_balance, rounding):
+            open_balance = 0.0
+
+        open_data = {'debit': open_debit,
+                     'credit': open_credit,
+                     'balance': open_balance, }
+
+        group_by_ids = self.env[D_LEDGER[type_ledger]['model']].browse(group_by_ids)
+        group_by_ids = sorted(group_by_ids, key=lambda x: x[D_LEDGER[type_ledger]['short']])
+        group_by_ids = {'model': D_LEDGER[type_ledger]['model'],
+                        'ids': [x.id for x in group_by_ids]}
+
+        return lines_group_by, line_account, group_by_ids, open_data
+
+
+    def _generate_sql(self, data, accounts, reconcile_clause, date_to, date_from):
         date_clause = ''
         if date_to:
             date_clause += ' AND account_move_line.date <= ' + "'" + str(date_to) + "'" + ' '
-        if date_from and type_ledger == 'journal':
+        if date_from and self.type_ledger == 'journal':
             date_clause += ' AND account_move_line.date >= ' + "'" + str(date_from) + "'" + ' '
 
-        # clear used_context date if not it is use during the sql query
-        data['used_context']['date_to'] = False
-        data['used_context']['date_from'] = False
-
-        query_get_data = self.env['account.move.line'].with_context(data.get('used_context', {}))._query_get()
-        reconcile_clause = data['reconcile_clause']
-        params = [tuple(data['computed']['move_state']), tuple(accounts.ids)] + query_get_data[2]
+        context = {'journal_ids': self.journal_ids.ids,
+                   'state': self.target_move, }
+        query_get_data = self.env['account.move.line'].with_context(context)._query_get()
+        reconcile_clause = reconcile_clause
+        move_state = ['posted'] if self.target_move == 'posted' else ['draft', 'posted']
+        params = [tuple(['posted']), tuple(accounts.ids)] + query_get_data[2]
 
         partner_clause = ''
-        if data.get('partner_ids'):
-            partner_ids = data.get('partner_ids')
+        if self.partner_ids:
+            partner_ids = self.partner_ids.ids
             if len(partner_ids) == 1:
                 partner_ids = "(%s)" % (partner_ids[0])
             else:
                 partner_ids = tuple(partner_ids)
             partner_clause = ' AND account_move_line.partner_id IN ' + str(partner_ids) + ' '
-        elif type_ledger == 'partner':
+        elif self.type_ledger == 'partner':
             partner_clause = ' AND account_move_line.partner_id IS NOT NULL '
 
         query = """
@@ -338,182 +494,11 @@ class AccountStandardLedger(models.TransientModel):
                 'matching_number': '',
                 'type_line': 'total', }
 
-    def _generate_data(self, type_ledger, data, accounts, date_format):
-        rounding = self.env.user.company_id.currency_id.rounding or 0.01
-        with_init_balance = data['with_init_balance']
-        init_balance_history = data['init_balance_history']
-        summary = data['summary']
-        date_from = data['used_context']['date_from']
-        date_to = data['used_context']['date_to']
-        detail_unreconcillied_in_init = data['detail_unreconcillied_in_init']
-        date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
-        date_to_dt = datetime.strptime(date_to, DEFAULT_SERVER_DATE_FORMAT) if date_to else False
-        date_init_dt = self._generate_date_init(date_from_dt)
-        date_init = date_init_dt.strftime(DEFAULT_SERVER_DATE_FORMAT) if date_init_dt else False
-
-        data['reconcile_clause'], data['matching_in_futur'], data['list_match_after_init'] = self._compute_reconcile_clause(type_ledger, data, date_init_dt)
-        res = self._generate_sql(type_ledger, data, accounts, date_to, date_from)
-
-        lines_group_by = {}
-        group_by_ids = []
-        group_by_field = D_LEDGER[type_ledger]['group_by']
-        line_account = self._generate_account_dict(accounts)
-
-        # for group_by, value in lines_group_by.items():
-        init_lines_to_compact = []
-        new_list = []
-        for r in res:  # value['lines']:
-            date_move_dt = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
-
-            # Cas 1 : avant la date d'ouverture et, 401 non lettré avant la date d'ouverture
-            #       si compte avec balance initiale
-            #       -> pour calcul d'init
-            #       sinon
-            #       -> perdu
-            # Cas 2 : entre la date d'ouverture et date_from, et 401 non lettré avant dat_to
-            #       -> pour calcul d'init
-            # Cas 3 : après la date_from
-            #       -> pour affichage
-
-            add_in = 'view'
-            if with_init_balance:
-                if r['a_type'] in ('payable', 'receivable') and detail_unreconcillied_in_init:
-                    if not r['matching_number_id']:
-                        matched_in_future = False
-                        matched_after_init = False
-                    else:
-                        matched_after_init = True
-                        matched_in_future = True
-                        if r['matching_number_id'] in data['matching_in_futur']:
-                            matched_in_future = False
-                        if r['matching_number_id'] in data['list_match_after_init']:
-                            matched_after_init = False
-                else:
-                    matched_after_init = True
-                    matched_in_future = True
-
-                if date_move_dt < date_init_dt and matched_after_init:
-                    if r['include_initial_balance']:
-                        add_in = 'init'
-                    else:
-                        add_in = 'not add'
-                elif date_move_dt >= date_init_dt and date_from_dt and date_move_dt < date_from_dt and matched_in_future:
-                    add_in = 'init'
-                else:
-                    add_in = 'view'
-
-            r['reduce_balance'] = False
-            if add_in == 'init':
-                init_lines_to_compact.append(r)
-                if r['a_type'] in ('payable', 'receivable') and date_move_dt < date_init_dt:
-                    r['reduce_balance'] = True
-            elif add_in == 'view':
-                date_move = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
-                r['date'] = date_move.strftime(date_format)
-                r['date_maturity'] = datetime.strptime(r['date_maturity'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format)
-                r['displayed_name'] = '-'.join(
-                    r[field_name] for field_name in ('ref', 'name')
-                    if r[field_name] not in (None, '', '/')
-                )
-                # if move is matching with the future then replace matching number par *
-                if r['matching_number_id'] in data['matching_in_futur']:
-                    r['matching_number'] = '*'
-
-                r['type_line'] = 'normal'
-                append_r = True if not type_ledger == 'open' else False
-                if date_from_dt and date_move_dt < date_from_dt:
-                    r['type_line'] = 'init'
-                    r['code'] = 'INIT'
-                    append_r = True
-
-                if append_r:
-                    new_list.append(r)
-
-        init_balance_lines = self._generate_init_balance_lines(type_ledger, init_lines_to_compact, init_balance_history)
-
-        if type_ledger == 'journal':
-            all_lines = new_list
-        else:
-            all_lines = init_balance_lines + new_list
-
-        for r in all_lines:
-            if r[group_by_field] in lines_group_by.keys():
-                lines_group_by[r[group_by_field]]['new_lines'].append(r)
-            else:
-                lines_group_by[r[group_by_field]] = {'new_lines': [r], }
-
-        # remove unused group_by
-        for group_by, value in lines_group_by.items():
-            if not value['new_lines']:
-                del lines_group_by[group_by]
-
-        open_debit = 0
-        open_credit = 0
-        # compute sum by group_by
-        # compute sum by account
-        for group_by, value in lines_group_by.items():
-            balance = 0.0
-            sum_debit = 0.0
-            sum_credit = 0.0
-            for r in value['new_lines']:
-                balance += r['debit'] - r['credit']
-                r['progress'] = balance
-                if float_is_zero(balance, rounding):
-                    r['progress'] = 0.0
-
-                sum_debit += r['debit']
-                sum_credit += r['credit']
-                open_debit += r['debit']
-                open_credit += r['credit']
-
-                r['s_debit'] = False if float_is_zero(r['debit'], rounding) else True
-                r['s_credit'] = False if float_is_zero(r['credit'], rounding) else True
-
-                line_account[r['account_id']]['debit'] += r['debit']
-                line_account[r['account_id']]['credit'] += r['credit']
-                line_account[r['account_id']]['active'] = True
-                line_account[r['account_id']]['balance'] += r['debit'] - r['credit']
-
-            balance = sum_debit - sum_credit
-            if float_is_zero(balance, rounding):
-                balance = 0.0
-
-            if data['sum_group_by_bottom']:
-                lines_group_by[group_by]['new_lines'].append(self._generate_total(sum_debit, sum_credit, balance))
-
-            lines_group_by[group_by]['s_debit'] = False if float_is_zero(sum_debit, rounding) else True
-            lines_group_by[group_by]['s_credit'] = False if float_is_zero(sum_credit, rounding) else True
-            lines_group_by[group_by]['debit - credit'] = balance
-            lines_group_by[group_by]['debit'] = sum_debit
-            lines_group_by[group_by]['credit'] = sum_credit
-
-            group_by_ids.append(group_by)
-
-        # remove unused account
-        for key, value in line_account.items():
-            if value['active'] == False:
-                del line_account[key]
-
-        open_balance = open_debit - open_credit
-        if float_is_zero(open_balance, rounding):
-            open_balance = 0.0
-
-        open_data = {'debit': open_debit,
-                     'credit': open_credit,
-                     'balance': open_balance, }
-
-        group_by_ids = self.env[D_LEDGER[type_ledger]['model']].browse(group_by_ids)
-        group_by_ids = sorted(group_by_ids, key=lambda x: x[D_LEDGER[type_ledger]['short']])
-        group_by_ids = {'model': D_LEDGER[type_ledger]['model'],
-                        'ids': [x.id for x in group_by_ids]}
-
-        return lines_group_by, line_account, group_by_ids, open_data
-
-    def _search_account(self, data):
-        type_ledger = data.get('type_ledger')
+    def _search_account(self):
+        type_ledger = self.type_ledger
         domain = [('deprecated', '=', False), ]
         if type_ledger == 'partner':
-            result_selection = data.get('result_selection', 'customer')
+            result_selection = self.result_selection
             if result_selection == 'supplier':
                 acc_type = ['payable']
             elif result_selection == 'customer':
@@ -522,8 +507,8 @@ class AccountStandardLedger(models.TransientModel):
                 acc_type = ['payable', 'receivable']
             domain.append(('internal_type', 'in', acc_type))
 
-        account_in_ex_clude = data.get('account_in_ex_clude')
-        acc_methode = data.get('account_methode')
+        account_in_ex_clude = self.account_in_ex_clude.ids
+        acc_methode = self.account_methode
         if account_in_ex_clude:
             if acc_methode == 'include':
                 domain.append(('id', 'in', account_in_ex_clude))
@@ -531,19 +516,19 @@ class AccountStandardLedger(models.TransientModel):
                 domain.append(('id', 'not in', account_in_ex_clude))
         return self.env['account.account'].search(domain)
 
-    def _compute_reconcile_clause(self, type_ledger, data, date_init):
+    def _compute_reconcile_clause(self, date_init):
         reconcile_clause = ""
         list_match_in_futur = []
         list_match_after_init = []
 
-        if not data['reconciled']:
+        if not self.reconciled:
             reconcile_clause = ' AND account_move_line.reconciled = false '
 
         # when an entrie a matching number and this matching number is linked with
         # entries witch the date is gretter than date_to, then
         # the entrie is considered like unreconciled.
-        if data['rem_futur_reconciled'] and data['date_to']:
-            date_to = datetime.strptime(data['date_to'], DEFAULT_SERVER_DATE_FORMAT)
+        if self.rem_futur_reconciled and self.date_to:
+            date_to = datetime.strptime(self.date_to, DEFAULT_SERVER_DATE_FORMAT)
             acc_ful_obj = self.env['account.full.reconcile']
 
             def sql_query(params):
@@ -561,7 +546,7 @@ class AccountStandardLedger(models.TransientModel):
             for r in sql_query([date_init]):
                 list_match_after_init.append(r['id'])
 
-            if list_match_in_futur and not data['reconciled']:
+            if list_match_in_futur and not self.reconciled:
                 if len(list_match_in_futur) == 1:
                     list_match_in_futur_sql = "(%s)" % (list_match_in_futur[0])
                 else:
@@ -570,9 +555,9 @@ class AccountStandardLedger(models.TransientModel):
 
         return reconcile_clause, list_match_in_futur, list_match_after_init
 
-    def _get_name_report(self, data, type_ledger):
-        name = D_LEDGER[type_ledger]['name']
-        if data['summary']:
+    def _get_name_report(self):
+        name = D_LEDGER[self.type_ledger]['name']
+        if self.summary:
             name += ' Summary'
         return name
 

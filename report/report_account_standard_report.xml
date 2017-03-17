@@ -14,8 +14,12 @@
                             <p t-esc="res_company.name"/>
                         </div>
                         <div class="col-xs-3">
-                            <t t-if="data['form']['date_from']"><strong>Start Date :</strong> <span t-esc="data['form']['date_from']"/><br/></t>
-                            <t t-if="data['form']['date_to']"><strong>End Date :</strong> <span t-esc="data['form']['date_to']"/></t>
+                            <t t-if="data['form']['date_from']">
+                                <strong>Start Date :</strong>
+                                <span t-esc="data['form']['date_from']"/><br/></t>
+                            <t t-if="data['form']['date_to']">
+                                <strong>End Date :</strong>
+                                <span t-esc="data['form']['date_to']"/></t>
                             <p t-if="data['form']['with_init_balance']">With Initial Balance.</p>
                         </div>
                         <div class="col-xs-3">
@@ -34,9 +38,9 @@
                             <tr>
                                 <th class="col-xs-1">Code</th>
                                 <th class="col-xs-1">Name</th>
-                                <th class="col-xs-1">Debit</th>
-                                <th class="col-xs-1">Credit</th>
-                                <th class="col-xs-1">Balance</th>
+                                <th class="col-xs-1 text-right">Debit</th>
+                                <th class="col-xs-1 text-right">Credit</th>
+                                <th class="col-xs-1 text-right">Balance</th>
                             </tr>
                         </thead>
                         <t t-foreach="accounts(data)" t-as="account">
@@ -62,6 +66,33 @@
                         </t>
                     </table>
 
+                    <table class="table table-condensed" t-if="data['form']['type_ledger'] == 'open'">
+                        <thead>
+                            <tr>
+                                <th class="col-xs-1">Total</th>
+                                <th></th>
+                                <th></th>
+                                <th></th>
+                                <th class="col-xs-1 text-right">Debit</th>
+                                <th class="col-xs-1 text-right">Credit</th>
+                                <th class="col-xs-1 text-right">Balance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-right" colspan="5">
+                                    <span t-esc="data['open_data']['debit']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                </td>
+                                <td class="text-right">
+                                    <span t-esc="data['open_data']['credit']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                </td>
+                                <td class="text-right">
+                                    <span t-esc="data['open_data']['balance']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+
                     <table class="table-condensed">
                         <thead>
                             <tr>
@@ -70,6 +101,7 @@
                                 <th class="col-xs-1">Account</th>
                                 <th class="col-xs-1">Journal entries</th>
                                 <th class="col-xs-3">Ref</th>
+                                <th class="col-xs-3" t-if="data['form']['type_ledger'] != 'partner'">Partner</th>
                                 <th class="col-xs-1">Due Date</th>
                                 <th class="col-xs-1 text-right">Debit</th>
                                 <th class="col-xs-1 text-right">Credit</th>
@@ -87,6 +119,7 @@
                                     <td colspan="4">
                                         <strong t-esc="group_by_top(data, o, 'name')"/>
                                     </td>
+                                    <td t-if="data['form']['type_ledger'] != 'partner'"></td>
                                     <td class="text-right">
                                         <strong t-if="data['form']['sum_group_by_top'] and sum_group_by(data, o, 's_debit')" t-esc="sum_group_by(data, o, 'debit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
@@ -96,8 +129,8 @@
                                     <td class="text-right">
                                         <strong t-if="data['form']['sum_group_by_top']" t-esc="sum_group_by(data, o, 'debit - credit')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
                                     </td>
-                                    <td t-if="amount_currency"> </td>
-                                    <td> </td>
+                                    <td t-if="amount_currency"></td>
+                                    <td></td>
                                 </tr>
                                 <tr t-foreach="lines(data, o)" t-as="line" t-if="data['form']['summary'] == False">
                                     <td>
@@ -120,6 +153,10 @@
                                     <td>
                                         <i t-if="line['type_line'] == 'init'" t-esc="line['displayed_name']"></i>
                                         <span t-if="line['type_line'] == 'normal'" t-esc="line['displayed_name']"></span>
+                                    </td>
+                                    <td t-if="data['form']['type_ledger'] != 'partner'">
+                                        <i t-if="line['type_line'] == 'init'" t-esc="line['partner_name']"></i>
+                                        <span t-if="line['type_line'] == 'normal'" t-esc="line['partner_name']"></span>
                                     </td>
                                     <td>
                                         <i t-if="line['type_line'] == 'init'" t-esc="line['date_maturity']"></i>

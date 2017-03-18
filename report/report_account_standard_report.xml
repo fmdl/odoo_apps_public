@@ -114,10 +114,10 @@
                             <tbody style="border-bottom: 1px solid;">
                                 <tr style="border-bottom: 1px solid #ddd;">
                                     <td colspan="2">
-                                        <strong t-esc="group_by_top(data, o, 'code')"/>
+                                        <strong t-esc="sum_group_by(data, o, 'code')"/>
                                     </td>
                                     <td colspan="4">
-                                        <strong t-esc="group_by_top(data, o, 'name')"/>
+                                        <strong t-esc="sum_group_by(data, o, 'name')"/>
                                     </td>
                                     <td t-if="data['type_ledger'] != 'partner'"></td>
                                     <td class="text-right">

@@ -13,10 +13,11 @@ class AccountStandardReport(models.AbstractModel):
     @api.multi
     def render_html(self, docis, data):
         group_by_ids = []
+        group_by_obj = self.env[data['group_by_data']['model']]
         for record in data['group_by_data']['ids']:
-            group_by_ids.append(self.env[data['group_by_data']['model']].browse(record))
+            group_by_ids.append(group_by_obj.browse(record))
         docargs = {
-            'group_by_top': self._group_by_top,
+            #'group_by_top': self._group_by_top,
             'data': data,
             'docs': group_by_ids,
             'time': time,
@@ -34,21 +35,3 @@ class AccountStandardReport(models.AbstractModel):
 
     def _sum_group_by(self, data, group_by, field):
         return data['lines_group_by'][str(group_by.id)][field]
-
-    def _group_by_top(self, data, group_by, field):
-        type_ledger = data['type_ledger']
-        if type_ledger in ('general', 'journal', 'open'):
-            code = group_by.code
-            name = group_by.name
-        elif type_ledger == 'partner':
-            if group_by.ref:
-                code = group_by.ref
-                name = group_by.name
-            else:
-                code = group_by.name
-                name = ''
-        if field == 'code':
-            return code or ''
-        if field == 'name':
-            return name or ''
-        return

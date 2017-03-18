@@ -199,6 +199,7 @@ class AccountStandardLedger(models.TransientModel):
         reconcile_clause, matching_in_futur, list_match_after_init = self._compute_reconcile_clause(date_init_dt)
 
         res = self._generate_sql(data, accounts, reconcile_clause, date_to, date_from)
+        group_by_obj = self.env[D_LEDGER[type_ledger]['model']]
 
         lines_group_by = {}
         group_by_ids = []
@@ -303,7 +304,7 @@ class AccountStandardLedger(models.TransientModel):
             for r in value['new_lines']:
                 balance += r['debit'] - r['credit']
                 r['progress'] = balance
-                if float_is_zero(balance, rounding):
+                if float_is_zero(balance, precision_rounding=rounding):
                     r['progress'] = 0.0
 
                 sum_debit += r['debit']
@@ -311,8 +312,8 @@ class AccountStandardLedger(models.TransientModel):
                 open_debit += r['debit']
                 open_credit += r['credit']
 
-                r['s_debit'] = False if float_is_zero(r['debit'], rounding) else True
-                r['s_credit'] = False if float_is_zero(r['credit'], rounding) else True
+                r['s_debit'] = False if float_is_zero(r['debit'], precision_rounding=rounding) else True
+                r['s_credit'] = False if float_is_zero(r['credit'], precision_rounding=rounding) else True
 
                 line_account[r['account_id']]['debit'] += r['debit']
                 line_account[r['account_id']]['credit'] += r['credit']
@@ -320,17 +321,20 @@ class AccountStandardLedger(models.TransientModel):
                 line_account[r['account_id']]['balance'] += r['debit'] - r['credit']
 
             balance = sum_debit - sum_credit
-            if float_is_zero(balance, rounding):
+            print(r['a_code'], sum_debit, sum_credit, balance,)
+            if float_is_zero(balance, precision_rounding=rounding):
+                print('True')
                 balance = 0.0
 
             if data['sum_group_by_bottom']:
                 lines_group_by[group_by]['new_lines'].append(self._generate_total(sum_debit, sum_credit, balance))
 
-            lines_group_by[group_by]['s_debit'] = False if float_is_zero(sum_debit, rounding) else True
-            lines_group_by[group_by]['s_credit'] = False if float_is_zero(sum_credit, rounding) else True
+            lines_group_by[group_by]['s_debit'] = False if float_is_zero(sum_debit, precision_rounding=rounding) else True
+            lines_group_by[group_by]['s_credit'] = False if float_is_zero(sum_credit, precision_rounding=rounding) else True
             lines_group_by[group_by]['debit - credit'] = balance
             lines_group_by[group_by]['debit'] = sum_debit
             lines_group_by[group_by]['credit'] = sum_credit
+            lines_group_by[group_by]['code'], lines_group_by[group_by]['name'] = self._get_sum_name(group_by_obj.browse(group_by))
 
             group_by_ids.append(group_by)
 
@@ -340,20 +344,34 @@ class AccountStandardLedger(models.TransientModel):
                 del line_account[key]
 
         open_balance = open_debit - open_credit
-        if float_is_zero(open_balance, rounding):
+        if float_is_zero(open_balance, precision_rounding=rounding):
             open_balance = 0.0
 
         open_data = {'debit': open_debit,
                      'credit': open_credit,
                      'balance': open_balance, }
 
-        group_by_ids = self.env[D_LEDGER[type_ledger]['model']].browse(group_by_ids)
+        group_by_ids = group_by_obj.browse(group_by_ids)
         group_by_ids = sorted(group_by_ids, key=lambda x: x[D_LEDGER[type_ledger]['short']])
         group_by_ids = {'model': D_LEDGER[type_ledger]['model'],
                         'ids': [x.id for x in group_by_ids]}
 
         return lines_group_by, line_account, group_by_ids, open_data
 
+    def _get_sum_name(self, group_by):
+        code = ''
+        name = ''
+        if self.type_ledger in ('general', 'journal', 'open'):
+            code = group_by.code
+            name = group_by.name
+        elif self.type_ledger == 'partner':
+            if group_by.ref:
+                code = group_by.ref
+                name = group_by.name
+            else:
+                code = group_by.name
+                name = ''
+        return code , name
 
     def _generate_sql(self, data, accounts, reconcile_clause, date_to, date_from):
         date_clause = ''
@@ -461,14 +479,14 @@ class AccountStandardLedger(models.TransientModel):
             init_credit = value['credit']
             balance = init_debit - init_credit
             re_balance = value['re_debit'] - value['re_credit']
-            if float_is_zero(balance, rounding):
+            if float_is_zero(balance, precision_rounding=rounding):
                 balance = 0.0
             if re_balance > 0:
                 init_debit += abs(re_balance)
             elif re_balance < 0:
                 init_credit += abs(re_balance)
 
-            if not float_is_zero(init_debit, rounding) or not float_is_zero(init_credit, rounding):
+            if not float_is_zero(init_debit, precision_rounding=rounding) or not float_is_zero(init_credit, precision_rounding=rounding):
                 init.append({'date': 'Initial balance',
                              'date_maturity': '',
                              'debit': init_debit,
@@ -492,8 +510,8 @@ class AccountStandardLedger(models.TransientModel):
                 'date_maturity': '',
                 'debit': sum_debit,
                 'credit': sum_credit,
-                's_debit': False if float_is_zero(sum_debit, rounding) else True,
-                's_credit': False if float_is_zero(sum_credit, rounding) else True,
+                's_debit': False if float_is_zero(sum_debit, precision_rounding=rounding) else True,
+                's_credit': False if float_is_zero(sum_credit, precision_rounding=rounding) else True,
                 'code': '',
                 'move_name': '',
                 'a_code': '',

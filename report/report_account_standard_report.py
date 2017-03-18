@@ -17,7 +17,6 @@ class AccountStandardReport(models.AbstractModel):
         for record in data['group_by_data']['ids']:
             group_by_ids.append(group_by_obj.browse(record))
         docargs = {
-            #'group_by_top': self._group_by_top,
             'data': data,
             'docs': group_by_ids,
             'time': time,

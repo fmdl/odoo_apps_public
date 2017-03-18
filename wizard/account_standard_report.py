@@ -134,7 +134,7 @@ class AccountStandardLedger(models.TransientModel):
         return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data=data)
 
     def print_excel_report(self):
-        return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel') #
+        return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel')
 
     def pre_compute_form(self):
         if self.date_from == False:
@@ -177,7 +177,7 @@ class AccountStandardLedger(models.TransientModel):
         data['date_from'] = datetime.strptime(data['date_from'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_from'] else False
         data['date_to'] = datetime.strptime(data['date_to'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_to'] else False
         data['res_company'] = self.env.user.company_id.name
-        data['time'] = fields.Datetime.context_timestamp(self.with_context(tz=self.env.user.tz), datetime.now()).strftime(('%s %s') %(date_format, time_format))
+        data['time'] = fields.Datetime.context_timestamp(self.with_context(tz=self.env.user.tz), datetime.now()).strftime(('%s %s') % (date_format, time_format))
 
         return data
 
@@ -321,9 +321,7 @@ class AccountStandardLedger(models.TransientModel):
                 line_account[r['account_id']]['balance'] += r['debit'] - r['credit']
 
             balance = sum_debit - sum_credit
-            print(r['a_code'], sum_debit, sum_credit, balance,)
             if float_is_zero(balance, precision_rounding=rounding):
-                print('True')
                 balance = 0.0
 
             if data['sum_group_by_bottom']:
@@ -371,7 +369,7 @@ class AccountStandardLedger(models.TransientModel):
             else:
                 code = group_by.name
                 name = ''
-        return code , name
+        return code, name
 
     def _generate_sql(self, data, accounts, reconcile_clause, date_to, date_from):
         date_clause = ''

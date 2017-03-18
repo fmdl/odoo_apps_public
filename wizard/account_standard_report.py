@@ -5,8 +5,6 @@ import time
 from odoo import api, models, fields, _
 from odoo.tools import float_is_zero, float_compare
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
-from odoo.addons.report_xlsx.report.report_xlsx import ReportXlsx
-from cStringIO import StringIO
 try:
     import xlsxwriter
 except ImportError:
@@ -35,8 +33,8 @@ D_LEDGER = {'general': {'name': 'General Ledger',
             }
 
 
-class AccountPartnerLedgerPeriode(models.TransientModel):
-    _name = 'account.report.partner.ledger.periode'
+class AccountStandardLedgerPeriode(models.TransientModel):
+    _name = 'account.report.standard.ledger.periode'
 
     name = fields.Char('Name')
     date_from = fields.Datetime('Date from')
@@ -44,7 +42,6 @@ class AccountPartnerLedgerPeriode(models.TransientModel):
 
 
 class AccountStandardLedger(models.TransientModel):
-    #_inherit = "account.common.partner.report"
     _name = 'account.report.standard.ledger'
     _description = 'Account Standard Ledger'
 
@@ -56,7 +53,7 @@ class AccountStandardLedger(models.TransientModel):
 
         last_day = self.env.user.company_id.fiscalyear_last_day or 31
         last_month = self.env.user.company_id.fiscalyear_last_month or 12
-        periode_obj = self.env['account.report.partner.ledger.periode']
+        periode_obj = self.env['account.report.standard.ledger.periode']
         periode_obj.search([]).unlink()
         periode_ids = periode_obj
         for year in range(today_year, today_year - 4, -1):
@@ -95,7 +92,7 @@ class AccountStandardLedger(models.TransientModel):
 
     amount_currency = fields.Boolean("With Currency", help="It adds the currency column on report if the currency differs from the company currency.")
     reconciled = fields.Boolean('Reconciled Entries')
-    periode_date = fields.Many2one('account.report.partner.ledger.periode', 'Periode', default=_get_periode_date, help="Auto complete Start and End date.")
+    periode_date = fields.Many2one('account.report.standard.ledger.periode', 'Periode', default=_get_periode_date, help="Auto complete Start and End date.")
     result_selection = fields.Selection([('customer', 'Receivable Accounts'),
                                          ('supplier', 'Payable Accounts'),
                                          ('customer_supplier', 'Receivable and Payable Accounts')

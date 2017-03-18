@@ -170,13 +170,14 @@ class AccountStandardLedger(models.TransientModel):
         })
         lang_code = self.env.context.get('lang') or 'en_US'
         date_format = self.env['res.lang']._lang_get(lang_code).date_format
-
+        time_format = self.env['res.lang']._lang_get(lang_code).time_format
         data['lines_group_by'], data['line_account'], data['group_by_data'], data['open_data'] = self._generate_data(data, date_format)
 
         data['name_report'] = self._get_name_report()
         data['date_from'] = datetime.strptime(data['date_from'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_from'] else False
         data['date_to'] = datetime.strptime(data['date_to'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_to'] else False
         data['res_company'] = self.env.user.company_id.name
+        data['time'] = fields.Datetime.context_timestamp(self.with_context(tz=self.env.user.tz), datetime.now()).strftime(('%s %s') %(date_format, time_format))
 
         return data
 

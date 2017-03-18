@@ -28,7 +28,7 @@
                             <p t-if="data['target_move'] == 'posted'">All Posted Entries</p>
                         </div>
                         <div class="col-xs-3">
-                            <strong t-if="data['reconciled']">With Reconciled Entries</strong>
+                            <strong t-if="data['reconciled'] == True">With Reconciled Entries</strong>
                             <strong t-if="data['reconciled'] == False">Only UnReconciled Entries</strong>
                             <p t-if="data['rem_futur_reconciled']">With entries matched with other entries dated after End Date.</p>
                         </div>

@@ -5,6 +5,12 @@ import time
 from odoo import api, models, fields, _
 from odoo.tools import float_is_zero, float_compare
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
+from odoo.addons.report_xlsx.report.report_xlsx import ReportXlsx
+from cStringIO import StringIO
+try:
+    import xlsxwriter
+except ImportError:
+    _logger.debug('Can not import xlsxwriter`.')
 
 D_LEDGER = {'general': {'name': 'General Ledger',
                         'group_by': 'account_id',
@@ -39,8 +45,8 @@ class AccountPartnerLedgerPeriode(models.TransientModel):
 
 class AccountStandardLedger(models.TransientModel):
     #_inherit = "account.common.partner.report"
-    _name = "account.report.standard.ledger"
-    _description = "Account Standard Ledger"
+    _name = 'account.report.standard.ledger'
+    _description = 'Account Standard Ledger'
 
     def _get_periode_date(self):
         lang_code = self.env.user.lang or 'en_US'
@@ -127,6 +133,9 @@ class AccountStandardLedger(models.TransientModel):
         data = self.pre_print_report()
         return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data=data)
 
+    def print_excel_report(self):
+        return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel') #
+
     def pre_compute_form(self):
         if self.date_from == False:
             self.with_init_balance = False
@@ -167,6 +176,7 @@ class AccountStandardLedger(models.TransientModel):
         data['name_report'] = self._get_name_report()
         data['date_from'] = datetime.strptime(data['date_from'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_from'] else False
         data['date_to'] = datetime.strptime(data['date_to'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_to'] else False
+        data['res_company'] = self.env.user.company_id.name
 
         return data
 
@@ -187,7 +197,7 @@ class AccountStandardLedger(models.TransientModel):
 
         reconcile_clause, matching_in_futur, list_match_after_init = self._compute_reconcile_clause(date_init_dt)
 
-        res = self._generate_sql(type_ledger, data, accounts, reconcile_clause, date_to, date_from)
+        res = self._generate_sql(data, accounts, reconcile_clause, date_to, date_from)
 
         lines_group_by = {}
         group_by_ids = []
@@ -543,8 +553,9 @@ class AccountStandardLedger(models.TransientModel):
 
             for r in sql_query([date_to]):
                 list_match_in_futur.append(r['id'])
-            for r in sql_query([date_init]):
-                list_match_after_init.append(r['id'])
+            if date_init:
+                for r in sql_query([date_init]):
+                    list_match_after_init.append(r['id'])
 
             if list_match_in_futur and not self.reconciled:
                 if len(list_match_in_futur) == 1:

@@ -8,7 +8,7 @@
     'description': """Standard Accounting Report""",
     'summary': 'Standard Accounting Report',
     'website': 'https://github.com/fmdl',
-    'depends': ['account'],
+    'depends': ['account', 'report_xlsx'],
     'data': [
         'data/account_report.xml',
         'report/report_account_standard_report.xml',

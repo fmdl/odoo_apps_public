@@ -33,7 +33,6 @@ class AccountStandardReport(models.AbstractModel):
         return data['lines_group_by'][str(group_by.id)]['new_lines']
 
     def _sum_group_by(self, data, group_by, field):
-        print(data['lines_group_by'])
         return data['lines_group_by'][str(group_by.id)][field]
 
     def _group_by_top(self, data, group_by, field):

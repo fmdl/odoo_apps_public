@@ -69,29 +69,44 @@ class AccountStandardLedger(models.TransientModel):
             periode_ids += periode_obj.create(vals)
         return False
 
-    type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger'), ('open', 'Open Ledger')], string='Type', default='general', required=True)
-    summary = fields.Boolean('Summary', dafault=False)
+    type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger'), ('open', 'Open Ledger')], string='Type', default='general', required=True,
+                                   help=' * General Ledger : Journal entries group by account\n'
+                                   ' * Partner Leger : Journal entries group by partner, with only payable/recevable accounts\n'
+                                   ' * Journal Ledger : Journal entries group by journal, without initial balance\n'
+                                   ' * Open Ledger : Openning journal at Start date\n')
+    summary = fields.Boolean('Summary', default=False,
+                             help=' * Check : generate a summary report.\n'
+                             ' * Uncheck : detail report.\n')
     amount_currency = fields.Boolean("With Currency", help="It adds the currency column on report if the currency differs from the company currency.")
-    reconciled = fields.Boolean('With Reconciled Entries')
-    rem_futur_reconciled = fields.Boolean('With entries matched with other entries dated after End Date.', default=False, help="Reconciled Entries matched with futur is considered like unreconciled. Matching number in futur is replace by *.")
+    reconciled = fields.Boolean('With Reconciled Entries', default=True,
+                                help='Only for entrie with a payable/receivable account.\n'
+                                ' * Check this box to see un-reconcillied and reconciled entries with payable.\n'
+                                ' * Uncheck to see only un-reconcillied entries. Can be use only with parnter ledger.\n')
+    rem_futur_reconciled = fields.Boolean('With entries matched with other entries dated after End Date.', default=False,
+                                          help=' * Check : Reconciled Entries matched with futur is considered like unreconciled. Matching number in futur is replace by *.\n'
+                                          ' * Uncheck : Reconciled Entries matched with futur is considered like reconciled. Carfull use if "With Reconciled Entries" is uncheck.\n')
     partner_ids = fields.Many2many(comodel_name='res.partner', string='Partners', domain=['|', ('is_company', '=', True), ('parent_id', '=', False)], help='If empty, get all partners')
     account_methode = fields.Selection([('include', 'Include'), ('exclude', 'Exclude')], string="Methode")
     account_in_ex_clude = fields.Many2many(comodel_name='account.account', string='Accounts', help='If empty, get all accounts')
-    with_init_balance = fields.Boolean('With Initial Report at Start Date', default=False)
-    sum_group_by_top = fields.Boolean('Sum on Top', default=False)
-    sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True)
-    init_balance_history = fields.Boolean('Payable/receivable initial balance with history.', default=False)
-    detail_unreconcillied_in_init = fields.Boolean('Detail of un-reconcillied payable/receivable move in initiale balance.', default=True)
+    with_init_balance = fields.Boolean('With Initial Report at Start Date', default=False,
+                                       help='The initial balance is compute with the fiscal date of company.\n'
+                                            ' * Check this box to generate the summary of initial balance.\n'
+                                            ' * Uncheck to see all entries.\n')
+    sum_group_by_top = fields.Boolean('Sum on Top', default=False, help='See the sum of element on top.')
+    sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True, help='See the sum of element on top.')
+    init_balance_history = fields.Boolean('Payable/receivable initial balance with history.', default=False,
+                                          help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
+                                          ' * Uncheck this box to report only the balance before the Start Date\n')
+    detail_unreconcillied_in_init = fields.Boolean('Detail of un-reconcillied payable/receivable entries in initiale balance.', default=True,
+                                help=' * Check : Add the detail of entries un-reconcillied and with payable/receivable account in the report.\n'
+                                    ' * Unckeck : no detail.\n')
     company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.env.user.company_id)
-    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]))
-    date_from = fields.Date(string='Start Date')
-    date_to = fields.Date(string='End Date')
+    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]), help='Select journal, for the Open Ledger you need to set all journals.')
+    date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
+    date_to = fields.Date(string='End Date', help='Use to compute the entrie matched with futur.')
     target_move = fields.Selection([('posted', 'All Posted Entries'),
                                     ('all', 'All Entries'),
                                     ], string='Target Moves', required=True, default='posted')
-
-    amount_currency = fields.Boolean("With Currency", help="It adds the currency column on report if the currency differs from the company currency.")
-    reconciled = fields.Boolean('Reconciled Entries')
     periode_date = fields.Many2one('account.report.standard.ledger.periode', 'Periode', default=_get_periode_date, help="Auto complete Start and End date.")
     result_selection = fields.Selection([('customer', 'Receivable Accounts'),
                                          ('supplier', 'Payable Accounts'),
@@ -111,6 +126,7 @@ class AccountStandardLedger(models.TransientModel):
             self.reconciled = True
             self.with_init_balance = True
             return {'domain': {'account_in_ex_clude': []}}
+        self.account_in_ex_clude = False
         return {'domain': {'account_in_ex_clude': [('internal_type', 'in', ('receivable', 'payable'))]}}
 
     @api.onchange('periode_date')

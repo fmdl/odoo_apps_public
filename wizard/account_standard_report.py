@@ -559,7 +559,7 @@ class AccountStandardLedger(models.TransientModel):
         return self.env['account.account'].search(domain)
 
     def _compute_reconcile_clause(self, date_init):
-        reconcile_clause = ""
+        reconcile_clause = ''
         list_match_in_futur = []
         list_match_after_init = []
 

@@ -495,9 +495,9 @@ class AccountStandardLedger(models.TransientModel):
             if float_is_zero(balance, precision_rounding=rounding):
                 balance = 0.0
             if re_balance > 0:
-                init_debit += abs(re_balance)
+                init_debit = abs(re_balance)
             elif re_balance < 0:
-                init_credit += abs(re_balance)
+                init_credit = abs(re_balance)
 
             if not float_is_zero(init_debit, precision_rounding=rounding) or not float_is_zero(init_credit, precision_rounding=rounding):
                 init.append({'date': 'Initial balance',

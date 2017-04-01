@@ -1,2 +1,4 @@
-# account_standard_report
-account_standard_report
+Account Standard report
+=======================
+
+For Odoo

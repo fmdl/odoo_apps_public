@@ -155,6 +155,8 @@ class AccountStandardLedger(models.TransientModel):
         if self.type_ledger != 'partner':
             self.reconciled = True
             self.with_init_balance = True
+            if self.date_from == False:
+                self.with_init_balance = False
             self.partner_ids = False
 
     def pre_print_report(self):

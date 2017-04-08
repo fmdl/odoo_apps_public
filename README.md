@@ -1,7 +1,3 @@
-.. image:: https://img.shields.io/badge/license-LGPL--3-blue.svg
-   :target: http://www.gnu.org/licenses/lgpl-3.0-standalone.html
-   :alt: License: LGPL-3
-
 Account Standard report
 =======================
 This module can generate a accounting report in PDF and Excel, with the new implementation of the accounting from Odoo V9.
@@ -10,21 +6,20 @@ the matching have no sense, because some moves are matched with the next year (o
 
 Features
 ========
-
-Initial balance
----------------
-* Initial Balance with detail on unmatching moves from payable/receivable account
-* With or without detail
-* With ou without reduced balance (credit or debit egual zero) on payable/receivable account
-* Use the fiscal date of company to generate the initial balance
-
 Report
 ------
-* Export in PDF and Excel (xlsx)
+* Export in PDF
+* Export Excel Files (xlsx), build to use pivot table
 * General Ledger
 * Partner Ledger
 * Journal Ledger
 * Open Ledger
+
+Initial balance
+---------------
+* Initial Balance with detail on unmatching moves from payable/receivable account
+* With ou without reduced balance (credit or debit egual zero) on payable/receivable account
+* Use the fiscal date of company to generate the initial balance
 
 Matching Number
 ---------------
@@ -38,7 +33,7 @@ Just install the module
 Usage
 =====
 * Go to Accounting/Report/Standard
-* Chosse your options
+* Choose your options
 
 Known issues / Roadmap
 ======================

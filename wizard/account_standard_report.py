@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime, timedelta
-import time
 from odoo import api, models, fields, _
 from odoo.tools import float_is_zero, float_compare
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
-try:
-    import xlsxwriter
-except ImportError:
-    _logger.debug('Can not import xlsxwriter`.')
 
 D_LEDGER = {'general': {'name': 'General Ledger',
                         'group_by': 'account_id',
@@ -396,7 +391,6 @@ class AccountStandardLedger(models.TransientModel):
         context = {'journal_ids': self.journal_ids.ids,
                    'state': self.target_move, }
         query_get_data = self.env['account.move.line'].with_context(context)._query_get()
-        reconcile_clause = reconcile_clause
         move_state = ['posted'] if self.target_move == 'posted' else ['draft', 'posted']
         params = [tuple(['posted']), tuple(accounts.ids)] + query_get_data[2]
 

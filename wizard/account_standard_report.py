@@ -138,10 +138,11 @@ class AccountStandardLedger(models.TransientModel):
             self.rem_futur_reconciled = True
 
     def print_pdf_report(self):
-        data = self.pre_print_report()
-        return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data=data)
+        self.ensure_one()
+        return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data={'id':self.id})
 
     def print_excel_report(self):
+        self.ensure_one()
         return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel')
 
     def pre_compute_form(self):

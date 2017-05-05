@@ -12,6 +12,8 @@ class AccountStandardReport(models.AbstractModel):
 
     @api.multi
     def render_html(self, docis, data):
+        report = self.env['account.report.standard.ledger'].browse(data['id'])
+        data = report.pre_print_report()
         group_by_ids = []
         group_by_obj = self.env[data['group_by_data']['model']]
         for record in data['group_by_data']['ids']:
@@ -30,7 +32,7 @@ class AccountStandardReport(models.AbstractModel):
         return data['line_account'].values()
 
     def _lines(self, data, group_by):
-        return data['lines_group_by'][str(group_by.id)]['new_lines']
+        return data['lines_group_by'][group_by.id]['new_lines']
 
     def _sum_group_by(self, data, group_by, field):
-        return data['lines_group_by'][str(group_by.id)][field]
+        return data['lines_group_by'][group_by.id][field]

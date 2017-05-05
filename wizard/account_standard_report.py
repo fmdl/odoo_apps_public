@@ -479,6 +479,7 @@ class AccountStandardLedger(models.TransientModel):
                                    'account_id': r['account_id'],
                                    group_by_field: r[group_by_field],
                                    'a_code': r['a_code'],
+                                   'a_name': r['a_name'],
                                    'a_type': r['a_type'], }
         init = []
         for key, value in init_lines.items():
@@ -500,6 +501,7 @@ class AccountStandardLedger(models.TransientModel):
                              'credit': init_credit,
                              'code': 'INIT',
                              'a_code': value['a_code'],
+                             'a_name': value['a_name'],
                              'move_name': '',
                              'account_id': value['account_id'],
                              group_by_field: value[group_by_field],

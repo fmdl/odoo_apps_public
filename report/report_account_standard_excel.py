@@ -32,11 +32,11 @@ class AccountStandardExcel(ReportXlsx):
             all_lines = []
             for group_by in data['group_by_data']['ids']:
                 all_lines.append({'code': data['lines_group_by'][group_by]['code'],
-                                    'name': data['lines_group_by'][group_by]['name'],
-                                    'debit': data['lines_group_by'][group_by]['debit'],
-                                    'credit': data['lines_group_by'][group_by]['credit'],
-                                    'debit - credit': data['lines_group_by'][group_by]['debit - credit'],
-                })
+                                  'name': data['lines_group_by'][group_by]['name'],
+                                  'debit': data['lines_group_by'][group_by]['debit'],
+                                  'credit': data['lines_group_by'][group_by]['credit'],
+                                  'debit - credit': data['lines_group_by'][group_by]['debit - credit'],
+                                  })
             if all_lines:
                 # Head
                 head = [
@@ -85,8 +85,6 @@ class AccountStandardExcel(ReportXlsx):
                                  'style': 'Table Style Light 9',
                                  })
 
-
-
         else:
             all_lines = []
             for group_by in data['group_by_data']['ids']:
@@ -104,6 +102,9 @@ class AccountStandardExcel(ReportXlsx):
                      'col': {}},
                     {'name': 'Account',
                      'larg': 10,
+                     'col': {}},
+                    {'name': 'Account Name',
+                     'larg': 15,
                      'col': {}},
                     {'name': 'Journal entries',
                      'larg': 20,
@@ -139,14 +140,15 @@ class AccountStandardExcel(ReportXlsx):
                     sheet.write(i, 0, line.get('date', ''))
                     sheet.write(i, 1, line.get('code', ''))
                     sheet.write(i, 2, line.get('a_code', ''))
-                    sheet.write(i, 3, line.get('move_name', ''))
-                    sheet.write(i, 4, line.get('displayed_name', ''))
-                    sheet.write(i, 5, line.get('partner_name', ''))
-                    sheet.write(i, 6, line.get('date_maturity', ''))
-                    sheet.write(i, 7, line.get('debit', ''), currency_format)
-                    sheet.write(i, 8, line.get('credit', ''), currency_format)
-                    sheet.write(i, 9, line.get('progress', ''), currency_format)
-                    sheet.write(i, 10, line.get('matching_number', ''))
+                    sheet.write(i, 3, line.get('a_name', ''))
+                    sheet.write(i, 4, line.get('move_name', ''))
+                    sheet.write(i, 5, line.get('displayed_name', ''))
+                    sheet.write(i, 6, line.get('partner_name', ''))
+                    sheet.write(i, 7, line.get('date_maturity', ''))
+                    sheet.write(i, 8, line.get('debit', ''), currency_format)
+                    sheet.write(i, 9, line.get('credit', ''), currency_format)
+                    sheet.write(i, 10, line.get('progress', ''), currency_format)
+                    sheet.write(i, 11, line.get('matching_number', ''))
                 row = i
 
                 for j, h in enumerate(head):

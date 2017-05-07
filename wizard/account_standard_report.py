@@ -93,8 +93,8 @@ class AccountStandardLedger(models.TransientModel):
                                           help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
                                           ' * Uncheck this box to report only the balance before the Start Date\n')
     detail_unreconcillied_in_init = fields.Boolean('Detail of un-reconcillied payable/receivable entries in initiale balance.', default=True,
-                                help=' * Check : Add the detail of entries un-reconcillied and with payable/receivable account in the report.\n'
-                                    ' * Unckeck : no detail.\n')
+                                                   help=' * Check : Add the detail of entries un-reconcillied and with payable/receivable account in the report.\n'
+                                                   ' * Unckeck : no detail.\n')
     company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.env.user.company_id)
     journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]), help='Select journal, for the Open Ledger you need to set all journals.')
     date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
@@ -139,7 +139,7 @@ class AccountStandardLedger(models.TransientModel):
 
     def print_pdf_report(self):
         self.ensure_one()
-        return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data={'id':self.id})
+        return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data={'active_id': self.id})
 
     def print_excel_report(self):
         self.ensure_one()

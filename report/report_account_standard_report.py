@@ -12,7 +12,7 @@ class AccountStandardReport(models.AbstractModel):
 
     @api.multi
     def render_html(self, docis, data):
-        report = self.env['account.report.standard.ledger'].browse(data['id'])
+        report = self.env['account.report.standard.ledger'].browse(data['active_id'])
         data = report.pre_print_report()
         group_by_ids = []
         group_by_obj = self.env[data['group_by_data']['model']]

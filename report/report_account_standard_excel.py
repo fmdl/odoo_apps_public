@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo.addons.report_xlsx.report.report_xlsx import ReportXlsx
-
+from odoo import _
 
 class AccountStandardExcel(ReportXlsx):
 
@@ -15,18 +15,18 @@ class AccountStandardExcel(ReportXlsx):
 
         sheet = workbook.add_worksheet(data['name_report'])
         sheet.write(0, 4, data['name_report'], report_format)
-        sheet.write(2, 0, 'Company:', bold)
+        sheet.write(2, 0, _('Company:'), bold)
         sheet.write(3, 0, data['res_company'],)
-        sheet.write(4, 0, 'Print on %s' % data['time'])
+        sheet.write(4, 0, _('Print on %s') % data['time'])
 
-        sheet.write(2, 2, 'Start Date : %s ' % data['date_from'] if data['date_from'] else '')
-        sheet.write(3, 2, 'End Date : %s ' % data['date_to'] if data['date_to'] else '')
+        sheet.write(2, 2, _('Start Date : %s ') % data['date_from'] if data['date_from'] else '')
+        sheet.write(3, 2, _('End Date : %s ') % data['date_to'] if data['date_to'] else '')
 
-        sheet.write(2, 4, 'Target Moves:', bold)
-        sheet.write(3, 4, 'All Entries' if data['target_move'] == 'all' else 'All Posted Entries')
+        sheet.write(2, 4, _('Target Moves:'), bold)
+        sheet.write(3, 4, _('All Entries') if data['target_move'] == 'all' else _('All Posted Entries'))
 
-        sheet.write(2, 6, 'Only UnReconciled Entries' if data['reconciled'] == False else 'With Reconciled Entries', bold)
-        sheet.write(3, 6, 'With entries matched with other entries dated after End Date.' if data['rem_futur_reconciled'] else '')
+        sheet.write(2, 6, _('Only UnReconciled Entries') if data['reconciled'] == False else _('With Reconciled Entries'), bold)
+        sheet.write(3, 6, _('With entries matched with other entries dated after End Date.') if data['rem_futur_reconciled'] else '')
 
         if report.summary:
             all_lines = []
@@ -94,40 +94,40 @@ class AccountStandardExcel(ReportXlsx):
             # Head
             if all_lines:
                 head = [
-                    {'name': 'Date',
+                    {'name': _('Date'),
                      'larg': 10,
                      'col': {}},
-                    {'name': 'JRNL',
+                    {'name': _('JRNL'),
                      'larg': 10,
                      'col': {}},
-                    {'name': 'Account',
+                    {'name': _('Account'),
                      'larg': 10,
                      'col': {}},
-                    {'name': 'Account Name',
+                    {'name': _('Account Name'),
                      'larg': 15,
                      'col': {}},
-                    {'name': 'Journal entries',
+                    {'name': _('Journal entries'),
                      'larg': 20,
                      'col': {}},
-                    {'name': 'Ref',
+                    {'name': _('Ref'),
                      'larg': 40,
                      'col': {}},
-                    {'name': 'Partner',
+                    {'name': _('Partner'),
                      'larg': 20,
                      'col': {}},
-                    {'name': 'Due Date',
+                    {'name': _('Due Date'),
                      'larg': 10,
                      'col': {}},
-                    {'name': 'Debit',
+                    {'name': _('Debit'),
                      'larg': 15,
                      'col': {'total_function': 'sum', 'format': currency_format}},
-                    {'name': 'Credit',
+                    {'name': _('Credit'),
                      'larg': 15,
                      'col': {'total_function': 'sum', 'format': currency_format}},
-                    {'name': 'Balance',
+                    {'name': _('Balance'),
                      'larg': 15,
                      'col': {'format': currency_format}},
-                    {'name': 'Match.',
+                    {'name': _('Match.'),
                      'larg': 10,
                      'col': {}},
                 ]

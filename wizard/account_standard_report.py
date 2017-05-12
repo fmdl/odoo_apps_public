@@ -97,7 +97,7 @@ class AccountStandardLedger(models.TransientModel):
                                                    ' * Unckeck : no detail.\n')
     company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.env.user.company_id)
     journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]),
-                                    help='Select journal, for the Open Ledger you need to set all journals.')
+                                   help='Select journal, for the Open Ledger you need to set all journals.')
     date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
     date_to = fields.Date(string='End Date', help='Use to compute the entrie matched with futur.')
     target_move = fields.Selection([('posted', 'All Posted Entries'),
@@ -108,6 +108,7 @@ class AccountStandardLedger(models.TransientModel):
                                          ('supplier', 'Payable Accounts'),
                                          ('customer_supplier', 'Receivable and Payable Accounts')
                                          ], string="Partner's", required=True, default='customer')
+    report_name = fields.Char('Report Name')
 
     @api.onchange('account_in_ex_clude')
     def on_change_summary(self):
@@ -185,7 +186,8 @@ class AccountStandardLedger(models.TransientModel):
         time_format = self.env['res.lang']._lang_get(lang_code).time_format
         data['lines_group_by'], data['line_account'], data['group_by_data'], data['open_data'] = self._generate_data(data, date_format)
 
-        data['name_report'] = self._get_name_report()
+        self._get_name_report()
+        data['name_report'] = self.report_name
         data['date_from'] = datetime.strptime(data['date_from'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_from'] else False
         data['date_to'] = datetime.strptime(data['date_to'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_to'] else False
         data['res_company'] = self.env.user.company_id.name
@@ -589,15 +591,17 @@ class AccountStandardLedger(models.TransientModel):
 
             if list_match_in_futur and not self.reconciled:
                 reconcile_clause = {'query': ' AND (account_move_line.full_reconcile_id IS NULL OR account_move_line.full_reconcile_id IN %s ) ',
-                                    'params': tuple(list_match_in_futur),}
+                                    'params': tuple(list_match_in_futur), }
 
         return reconcile_clause, list_match_in_futur, list_match_after_init
 
     def _get_name_report(self):
-        name = D_LEDGER[self.type_ledger]['name']
+        name = self.type_ledger
+        report_name = name
         if self.summary:
-            name += ' Summary'
-        return name
+            name += _(' Summary')
+            report_name += _('_summary')
+        self.report_name = report_name
 
     def _generate_date_init(self, date_from_dt):
         if date_from_dt:

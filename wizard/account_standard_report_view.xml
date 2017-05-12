@@ -68,8 +68,8 @@
         <menuitem
             id="menu_account_standard_report"
             name="Standard Report"
-            sequence="20"
-            parent="account_reports.account_reports_legal_statements_menu"
+            sequence="0"
+            parent="account.menu_finance_reports"
             action="action_account_standard_report_menu"
             groups="account.group_account_manager,account.group_account_user"/>
 

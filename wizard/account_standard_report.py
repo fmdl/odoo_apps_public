@@ -597,7 +597,7 @@ class AccountStandardLedger(models.TransientModel):
         return reconcile_clause, list_match_in_futur, list_match_after_init
 
     def _get_name_report(self):
-        name = self.type_ledger
+        name = D_LEDGER[self.type_ledger]['name']
         report_name = name
         if self.summary:
             name += _(' Summary')

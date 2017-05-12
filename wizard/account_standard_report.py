@@ -5,6 +5,7 @@ from odoo import api, models, fields, _
 from odoo.tools import float_is_zero
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 
+
 D_LEDGER = {'general': {'name': _('General Ledger'),
                         'group_by': 'account_id',
                         'model': 'account.account',

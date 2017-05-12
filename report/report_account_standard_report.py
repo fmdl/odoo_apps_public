@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from datetime import datetime, timedelta
 import time
-from odoo import api, models, fields, _
-from odoo.tools import float_is_zero, float_compare
-from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
+from odoo import api, models
 
 
 class AccountStandardReport(models.AbstractModel):

@@ -2,25 +2,25 @@
 
 from datetime import datetime, timedelta
 from odoo import api, models, fields, _
-from odoo.tools import float_is_zero, float_compare
+from odoo.tools import float_is_zero
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 
-D_LEDGER = {'general': {'name': 'General Ledger',
+D_LEDGER = {'general': {'name': _('General Ledger'),
                         'group_by': 'account_id',
                         'model': 'account.account',
                         'short': 'code',
                         },
-            'partner': {'name': 'Partner Ledger',
+            'partner': {'name': _('Partner Ledger'),
                         'group_by': 'partner_id',
                         'model': 'res.partner',
                         'short': 'name',
                         },
-            'journal': {'name': 'Journal Ledger',
+            'journal': {'name': _('Journal Ledger'),
                         'group_by': 'journal_id',
                         'model': 'account.journal',
                         'short': 'code',
                         },
-            'open': {'name': 'Open Ledger',
+            'open': {'name': _('Open Ledger'),
                      'group_by': 'account_id',
                      'model': 'account.account',
                      'short': 'code',
@@ -132,7 +132,7 @@ class AccountStandardLedger(models.TransientModel):
 
     @api.onchange('date_to')
     def onchange_date_to(self):
-        if self.date_to == False:
+        if self.date_to is False:
             self.rem_futur_reconciled = False
         else:
             self.rem_futur_reconciled = True
@@ -146,12 +146,12 @@ class AccountStandardLedger(models.TransientModel):
         return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel')
 
     def pre_compute_form(self):
-        if self.date_from == False:
+        if self.date_from is False:
             self.with_init_balance = False
         if self.type_ledger != 'partner':
             self.reconciled = True
             self.with_init_balance = True
-            if self.date_from == False:
+            if self.date_from is False:
                 self.with_init_balance = False
             self.partner_ids = False
 
@@ -196,15 +196,12 @@ class AccountStandardLedger(models.TransientModel):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         with_init_balance = self.with_init_balance
         init_balance_history = self.init_balance_history
-        summary = self.summary
         date_from = self.date_from
         date_to = self.date_to
         type_ledger = self.type_ledger
         detail_unreconcillied_in_init = self.detail_unreconcillied_in_init
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
-        date_to_dt = datetime.strptime(date_to, DEFAULT_SERVER_DATE_FORMAT) if date_to else False
         date_init_dt = self._generate_date_init(date_from_dt)
-        date_init = date_init_dt.strftime(DEFAULT_SERVER_DATE_FORMAT) if date_init_dt else False
         accounts = self._search_account()
 
         reconcile_clause, matching_in_futur, list_match_after_init = self._compute_reconcile_clause(date_init_dt)
@@ -349,7 +346,7 @@ class AccountStandardLedger(models.TransientModel):
 
         # remove unused account
         for key, value in line_account.items():
-            if value['active'] == False:
+            if value['active'] is False:
                 del line_account[key]
 
         open_balance = open_debit - open_credit
@@ -392,7 +389,6 @@ class AccountStandardLedger(models.TransientModel):
         context = {'journal_ids': self.journal_ids.ids,
                    'state': self.target_move, }
         query_get_data = self.env['account.move.line'].with_context(context)._query_get()
-        move_state = ['posted'] if self.target_move == 'posted' else ['draft', 'posted']
         params = [tuple(['posted']), tuple(accounts.ids)] + query_get_data[2]
 
         partner_clause = ''
@@ -568,7 +564,6 @@ class AccountStandardLedger(models.TransientModel):
         # the entrie is considered like unreconciled.
         if self.rem_futur_reconciled and self.date_to:
             date_to = datetime.strptime(self.date_to, DEFAULT_SERVER_DATE_FORMAT)
-            acc_ful_obj = self.env['account.full.reconcile']
 
             def sql_query(params):
                 query = """

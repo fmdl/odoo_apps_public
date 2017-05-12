@@ -1,69 +1,77 @@
 # Translation of Odoo Server.
 # This file contains the translation of the following modules:
-#	* account_standard_report
+# 	* account_standard_report
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 10.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-11 22:24+0000\n"
-"PO-Revision-Date: 2017-05-11 22:24+0000\n"
+"POT-Creation-Date: 2017-05-12 21:40+0000\n"
+"PO-Revision-Date: 2017-05-12 23:43+0200\n"
 "Last-Translator: <>\n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
-"Content-Transfer-Encoding: \n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: \n"
+"Language: fr\n"
+"X-Generator: Poedit 2.0.1\n"
 
 #. module: account_standard_report
 #: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_detail_unreconcillied_in_init
-msgid " * Check : Add the detail of entries un-reconcillied and with payable/receivable account in the report.\n"
+msgid ""
+" * Check : Add the detail of entries un-reconcillied and with payable/receivable account in the report.\n"
 " * Unckeck : no detail.\n"
-""
-msgstr " * Coché : ajoute le détail des écritures non lettrées des comptes des tiers.\n"
+msgstr ""
+" * Coché : ajoute le détail des écritures non lettrées des comptes des tiers.\n"
 " * Décoché : pas de détail.\n"
-""
 
 #. module: account_standard_report
 #: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_rem_futur_reconciled
-msgid " * Check : Reconciled Entries matched with futur is considered like unreconciled. Matching number in futur is replace by *.\n"
+msgid ""
+" * Check : Reconciled Entries matched with futur is considered like unreconciled. Matching number in futur is replace by *.\n"
 " * Uncheck : Reconciled Entries matched with futur is considered like reconciled. Carfull use if \"With Reconciled Entries\" is uncheck.\n"
-""
-msgstr " * Coché : Les écritures lettrées avec une écriture datée après la période sont considérées comme non lettrées. Le lettre sera remplacé par *.\n"
+msgstr ""
+" * Coché : Les écritures lettrées avec une écriture datée après la période sont considérées comme non lettrées. Le lettre sera remplacé par *.\n"
 " * Décoché : Les écritures lettrées avec une écriture datée après la période sont considérées comme lettrées. Attention si « Ecritures lettrées » .\n"
-""
 
 #. module: account_standard_report
 #: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_summary
-msgid " * Check : generate a summary report.\n"
+msgid ""
+" * Check : generate a summary report.\n"
 " * Uncheck : detail report.\n"
-""
-msgstr " * Coché : génère le résumé (ou balance)\n"
+msgstr ""
+" * Coché : génère le résumé (ou balance)\n"
 " * Décoché : édition détaillée\n"
-""
 
 #. module: account_standard_report
 #: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_init_balance_history
-msgid " * Check this box if you need to report all the debit and the credit sum before the Start Date.\n"
+msgid ""
+" * Check this box if you need to report all the debit and the credit sum before the Start Date.\n"
 " * Uncheck this box to report only the balance before the Start Date\n"
-""
-msgstr " * Coché : affiche le total des écritures avant le début de période dans le report initial.\n"
+msgstr ""
+" * Coché : affiche le total des écritures avant le début de période dans le report initial.\n"
 " * Décoché : affiche la balance des écritures avant le début de période dans le report initial.\n"
 "\n"
-""
 
 #. module: account_standard_report
 #: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_type_ledger
-msgid " * General Ledger : Journal entries group by account\n"
+msgid ""
+" * General Ledger : Journal entries group by account\n"
 " * Partner Leger : Journal entries group by partner, with only payable/recevable accounts\n"
 " * Journal Ledger : Journal entries group by journal, without initial balance\n"
 " * Open Ledger : Openning journal at Start date\n"
-""
-msgstr " * Grand livre : Ecritures groupées par compte\n"
+msgstr ""
+" * Grand livre : Ecritures groupées par compte\n"
 " * Livre des tiers : Ecritures groupées par tiers\n"
 " * Journal : Ecritures groupées par journal\n"
 " * Journal d’ouverture : Génère l’édition des à-nouveaux\n"
-""
+
+#. module: account_standard_report
+#: code:addons/account_standard_report/wizard/account_standard_report.py:603
+#, python-format
+msgid " Summary"
+msgstr " Balance"
 
 #. module: account_standard_report
 #: model:ir.ui.view,arch_db:account_standard_report.report_account_standard_report
@@ -83,7 +91,7 @@ msgstr "<strong>Période du :</strong>"
 #. module: account_standard_report
 #: model:ir.ui.view,arch_db:account_standard_report.report_account_standard_report
 msgid "<strong>Target Moves:</strong>"
-msgstr "<strong>Statut Ecritures</strong>"
+msgstr "<strong>Statut des écritures</strong>"
 
 #. module: account_standard_report
 #: code:addons/account_standard_report/report/report_account_standard_excel.py:103
@@ -101,7 +109,7 @@ msgstr "Description"
 #. module: account_standard_report
 #: model:ir.model,name:account_standard_report.model_account_report_standard_ledger
 msgid "Account Standard Ledger"
-msgstr "Edition standard de comptabilité"
+msgstr "Edition standard comptable"
 
 #. module: account_standard_report
 #: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_account_in_ex_clude
@@ -181,7 +189,7 @@ msgstr "Devise"
 #: model:ir.ui.view,arch_db:account_standard_report.report_account_standard_report
 #, python-format
 msgid "Date"
-msgstr "Date"
+msgstr "Date "
 
 #. module: account_standard_report
 #: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_periode_date_from
@@ -210,7 +218,7 @@ msgstr "Détail des écritures non réconciliées des comptes tiers dans la bala
 #: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_periode_display_name
 #: model:ir.model.fields,field_description:account_standard_report.field_report_account_standard_report_report_account_standard_report_display_name
 msgid "Display Name"
-msgstr "Afficher le nom"
+msgstr "Nom affiché"
 
 #. module: account_standard_report
 #: code:addons/account_standard_report/report/report_account_standard_excel.py:118
@@ -247,6 +255,8 @@ msgstr "Exclure"
 
 #. module: account_standard_report
 #: selection:account.report.standard.ledger,type_ledger:0
+#: code:addons/account_standard_report/wizard/account_standard_report.py:9
+#, python-format
 msgid "General Ledger"
 msgstr "Grand Livre"
 
@@ -286,6 +296,8 @@ msgstr "JRNL"
 
 #. module: account_standard_report
 #: selection:account.report.standard.ledger,type_ledger:0
+#: code:addons/account_standard_report/wizard/account_standard_report.py:19
+#, python-format
 msgid "Journal Ledger"
 msgstr "Journal"
 
@@ -306,13 +318,13 @@ msgstr "Journaux"
 #: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_periode___last_update
 #: model:ir.model.fields,field_description:account_standard_report.field_report_account_standard_report_report_account_standard_report___last_update
 msgid "Last Modified on"
-msgstr "Dernière modification le"
+msgstr "Dernière Modification le"
 
 #. module: account_standard_report
 #: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_periode_write_uid
 #: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_write_uid
 msgid "Last Updated by"
-msgstr "Dernière modification par"
+msgstr "Dernière mise à jour par"
 
 #. module: account_standard_report
 #: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_periode_write_date
@@ -336,7 +348,7 @@ msgstr "Méthode"
 #: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_periode_name
 #: model:ir.ui.view,arch_db:account_standard_report.report_account_standard_report
 msgid "Name"
-msgstr "Description"
+msgstr "Nom"
 
 #. module: account_standard_report
 #: code:addons/account_standard_report/report/report_account_standard_excel.py:28
@@ -347,17 +359,19 @@ msgstr "Seulement les écritures non lettrées"
 
 #. module: account_standard_report
 #: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_reconciled
-msgid "Only for entrie with a payable/receivable account.\n"
+msgid ""
+"Only for entrie with a payable/receivable account.\n"
 " * Check this box to see un-reconcillied and reconciled entries with payable.\n"
 " * Uncheck to see only un-reconcillied entries. Can be use only with parnter ledger.\n"
-""
-msgstr "Seulement pour les écritures des comptes de tiers.\n"
+msgstr ""
+"Seulement pour les écritures des comptes de tiers.\n"
 " * Cocher cette case pour voir les écritures lettrées et non lettrées.\n"
 " * Décocher pour voir seulement les écritures réconciliées. Doit être utiliser pour l’édition du livre des tiers.\n"
-""
 
 #. module: account_standard_report
 #: selection:account.report.standard.ledger,type_ledger:0
+#: code:addons/account_standard_report/wizard/account_standard_report.py:24
+#, python-format
 msgid "Open Ledger"
 msgstr "Journal d’ouverture"
 
@@ -370,6 +384,8 @@ msgstr "Partenaire"
 
 #. module: account_standard_report
 #: selection:account.report.standard.ledger,type_ledger:0
+#: code:addons/account_standard_report/wizard/account_standard_report.py:14
+#, python-format
 msgid "Partner Ledger"
 msgstr "Livre des tiers"
 
@@ -425,6 +441,11 @@ msgstr "Comptes des tiers"
 #, python-format
 msgid "Ref"
 msgstr "Réf"
+
+#. module: account_standard_report
+#: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_report_name
+msgid "Report Name"
+msgstr "Nom du rapport"
 
 #. module: account_standard_report
 #: model:ir.ui.view,arch_db:account_standard_report.account_report_standard_view
@@ -483,7 +504,7 @@ msgstr "Résumé"
 #. module: account_standard_report
 #: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_target_move
 msgid "Target Moves"
-msgstr "Mouvements cibles"
+msgstr "Statu des écritures"
 
 #. module: account_standard_report
 #: code:addons/account_standard_report/report/report_account_standard_excel.py:25
@@ -493,14 +514,14 @@ msgstr "Statut des Ecritures:"
 
 #. module: account_standard_report
 #: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_with_init_balance
-msgid "The initial balance is compute with the fiscal date of company.\n"
+msgid ""
+"The initial balance is compute with the fiscal date of company.\n"
 " * Check this box to generate the summary of initial balance.\n"
 " * Uncheck to see all entries.\n"
-""
-msgstr "La balance initial est calculée à partir des périodes fiscales de l'entreprise.\n"
+msgstr ""
+"La balance initial est calculée à partir des périodes fiscales de l'entreprise.\n"
 " * Coché cette case pour afficher la balance initiale de façon condensé.\n"
 " * Décoché cela affiche toutes les écritures passées.\n"
-""
 
 #. module: account_standard_report
 #: model:ir.ui.view,arch_db:account_standard_report.report_account_standard_report
@@ -554,6 +575,12 @@ msgid "With entries matched with other entries dated after End Date."
 msgstr "Avec les écritures lettrées avec une autre écriture datée après la période."
 
 #. module: account_standard_report
+#: code:addons/account_standard_report/wizard/account_standard_report.py:604
+#, python-format
+msgid "_summary"
+msgstr "_balance"
+
+#. module: account_standard_report
 #: model:ir.model,name:account_standard_report.model_account_report_standard_ledger_periode
 msgid "account.report.standard.ledger.periode"
 msgstr "account.report.standard.ledger.periode"
@@ -562,4 +589,3 @@ msgstr "account.report.standard.ledger.periode"
 #: model:ir.model,name:account_standard_report.model_report_account_standard_report_report_account_standard_report
 msgid "report.account_standard_report.report_account_standard_report"
 msgstr "report.account_standard_report.report_account_standard_report"
-

@@ -6,8 +6,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Odoo Server 10.0+e\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2017-05-11 22:24+0000\n"
-"PO-Revision-Date: 2017-05-11 22:24+0000\n"
+"POT-Creation-Date: 2017-05-12 21:44+0000\n"
+"PO-Revision-Date: 2017-05-12 21:44+0000\n"
 "Last-Translator: <>\n"
 "Language-Team: \n"
 "MIME-Version: 1.0\n"
@@ -50,6 +50,12 @@ msgid " * General Ledger : Journal entries group by account\n"
 " * Journal Ledger : Journal entries group by journal, without initial balance\n"
 " * Open Ledger : Openning journal at Start date\n"
 ""
+msgstr ""
+
+#. module: account_standard_report
+#: code:addons/account_standard_report/wizard/account_standard_report.py:603
+#, python-format
+msgid " Summary"
 msgstr ""
 
 #. module: account_standard_report
@@ -234,6 +240,8 @@ msgstr ""
 
 #. module: account_standard_report
 #: selection:account.report.standard.ledger,type_ledger:0
+#: code:addons/account_standard_report/wizard/account_standard_report.py:9
+#, python-format
 msgid "General Ledger"
 msgstr ""
 
@@ -273,6 +281,8 @@ msgstr ""
 
 #. module: account_standard_report
 #: selection:account.report.standard.ledger,type_ledger:0
+#: code:addons/account_standard_report/wizard/account_standard_report.py:19
+#, python-format
 msgid "Journal Ledger"
 msgstr ""
 
@@ -342,6 +352,8 @@ msgstr ""
 
 #. module: account_standard_report
 #: selection:account.report.standard.ledger,type_ledger:0
+#: code:addons/account_standard_report/wizard/account_standard_report.py:24
+#, python-format
 msgid "Open Ledger"
 msgstr ""
 
@@ -354,6 +366,8 @@ msgstr ""
 
 #. module: account_standard_report
 #: selection:account.report.standard.ledger,type_ledger:0
+#: code:addons/account_standard_report/wizard/account_standard_report.py:14
+#, python-format
 msgid "Partner Ledger"
 msgstr ""
 
@@ -408,6 +422,11 @@ msgstr ""
 #: model:ir.ui.view,arch_db:account_standard_report.report_account_standard_report
 #, python-format
 msgid "Ref"
+msgstr ""
+
+#. module: account_standard_report
+#: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_report_name
+msgid "Report Name"
 msgstr ""
 
 #. module: account_standard_report
@@ -532,6 +551,12 @@ msgstr ""
 #: model:ir.ui.view,arch_db:account_standard_report.report_account_standard_report
 #, python-format
 msgid "With entries matched with other entries dated after End Date."
+msgstr ""
+
+#. module: account_standard_report
+#: code:addons/account_standard_report/wizard/account_standard_report.py:604
+#, python-format
+msgid "_summary"
 msgstr ""
 
 #. module: account_standard_report

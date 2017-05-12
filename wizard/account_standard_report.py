@@ -96,7 +96,8 @@ class AccountStandardLedger(models.TransientModel):
                                                    help=' * Check : Add the detail of entries un-reconcillied and with payable/receivable account in the report.\n'
                                                    ' * Unckeck : no detail.\n')
     company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.env.user.company_id)
-    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]), help='Select journal, for the Open Ledger you need to set all journals.')
+    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]),
+                                    help='Select journal, for the Open Ledger you need to set all journals.')
     date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
     date_to = fields.Date(string='End Date', help='Use to compute the entrie matched with futur.')
     target_move = fields.Selection([('posted', 'All Posted Entries'),
@@ -379,28 +380,29 @@ class AccountStandardLedger(models.TransientModel):
                 name = ''
         return code, name
 
-    def _generate_sql(self, data, accounts, reconcile_clause, date_to, date_from):
+    def _generate_sql(self, data, accounts, reconcile_clause_data, date_to, date_from):
+        params = [self.target_move, tuple(accounts.ids), tuple(self.journal_ids.ids)]
+
         date_clause = ''
         if date_to:
-            date_clause += ' AND account_move_line.date <= ' + "'" + str(date_to) + "'" + ' '
+            date_clause += ' AND account_move_line.date <= %s '
+            params.append(date_to)
         if date_from and self.type_ledger == 'journal':
-            date_clause += ' AND account_move_line.date >= ' + "'" + str(date_from) + "'" + ' '
-
-        context = {'journal_ids': self.journal_ids.ids,
-                   'state': self.target_move, }
-        query_get_data = self.env['account.move.line'].with_context(context)._query_get()
-        params = [tuple(['posted']), tuple(accounts.ids)] + query_get_data[2]
+            date_clause += ' AND account_move_line.date >= %s '
+            params.append(date_from)
 
         partner_clause = ''
         if self.partner_ids:
-            partner_ids = self.partner_ids.ids
-            if len(partner_ids) == 1:
-                partner_ids = "(%s)" % (partner_ids[0])
-            else:
-                partner_ids = tuple(partner_ids)
-            partner_clause = ' AND account_move_line.partner_id IN ' + str(partner_ids) + ' '
+            partner_clause = 'AND account_move_line.partner_id IN %s'
+            params.append(tuple(self.partner_ids.ids))
         elif self.type_ledger == 'partner':
             partner_clause = ' AND account_move_line.partner_id IS NOT NULL '
+
+        reconcile_clause = ''
+        if reconcile_clause_data:
+            reconcile_clause = reconcile_clause_data['query']
+            if reconcile_clause_data['params']:
+                params.append(reconcile_clause_data['params'])
 
         query = """
             SELECT
@@ -426,7 +428,8 @@ class AccountStandardLedger(models.TransientModel):
                 account_move_line.account_id,
                 account_move_line.journal_id,
                 prt.name AS partner_name
-            FROM """ + query_get_data[0] + """
+            FROM
+                account_move AS account_move_line__move_id, account_move_line
                 LEFT JOIN account_journal j ON (account_move_line.journal_id = j.id)
                 LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
                 LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
@@ -435,9 +438,12 @@ class AccountStandardLedger(models.TransientModel):
                 LEFT JOIN account_full_reconcile afr ON (account_move_line.full_reconcile_id = afr.id)
                 LEFT JOIN res_partner prt ON (account_move_line.partner_id = prt.id)
             WHERE
-                m.state IN %s
-                AND account_move_line.account_id IN %s AND """ + query_get_data[1] + reconcile_clause + partner_clause + date_clause + """
+                m.state = %s
+                AND account_move_line.move_id=account_move_line__move_id.id
+                AND account_move_line.account_id IN %s
+                AND account_move_line.journal_id IN %s""" + date_clause + partner_clause + reconcile_clause + """
                 ORDER BY account_move_line.date, move_name, a_code, account_move_line.ref"""
+
         self.env.cr.execute(query, tuple(params))
         return self.env.cr.dictfetchall()
 
@@ -552,12 +558,12 @@ class AccountStandardLedger(models.TransientModel):
         return self.env['account.account'].search(domain)
 
     def _compute_reconcile_clause(self, date_init):
-        reconcile_clause = ''
+        reconcile_clause = {}
         list_match_in_futur = []
         list_match_after_init = []
 
         if not self.reconciled:
-            reconcile_clause = ' AND account_move_line.reconciled = false '
+            reconcile_clause = {'query': ' AND account_move_line.reconciled = false ', 'params': False, }
 
         # when an entrie a matching number and this matching number is linked with
         # entries witch the date is gretter than date_to, then
@@ -582,11 +588,8 @@ class AccountStandardLedger(models.TransientModel):
                     list_match_after_init.append(r['id'])
 
             if list_match_in_futur and not self.reconciled:
-                if len(list_match_in_futur) == 1:
-                    list_match_in_futur_sql = "(%s)" % (list_match_in_futur[0])
-                else:
-                    list_match_in_futur_sql = str(tuple(list_match_in_futur))
-                reconcile_clause = ' AND (account_move_line.full_reconcile_id IS NULL OR account_move_line.full_reconcile_id IN ' + list_match_in_futur_sql + ')'
+                reconcile_clause = {'query': ' AND (account_move_line.full_reconcile_id IS NULL OR account_move_line.full_reconcile_id IN %s ) ',
+                                    'params': tuple(list_match_in_futur),}
 
         return reconcile_clause, list_match_in_futur, list_match_after_init
 

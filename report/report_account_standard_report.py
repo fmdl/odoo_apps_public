@@ -11,10 +11,8 @@ class AccountStandardReport(models.AbstractModel):
     def render_html(self, docis, data):
         report = self.env['account.report.standard.ledger'].browse(data['active_id'])
         data = report.pre_print_report()
-        group_by_ids = []
         group_by_obj = self.env[data['group_by_data']['model']]
-        for record in data['group_by_data']['ids']:
-            group_by_ids.append(group_by_obj.browse(record))
+        group_by_ids = group_by_obj.browse(data['group_by_data']['ids'])
         docargs = {
             'data': data,
             'docs': group_by_ids,

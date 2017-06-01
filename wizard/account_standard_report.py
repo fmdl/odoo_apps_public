@@ -362,9 +362,9 @@ class AccountStandardLedger(models.TransientModel):
                      'balance': open_balance, }
 
         group_by_ids = group_by_obj.browse(group_by_ids)
-        group_by_ids = sorted(group_by_ids, key=lambda x: x[D_LEDGER[type_ledger]['short']])
+        group_by_ids = sorted(group_by_ids, key=lambda x: x[D_LEDGER[type_ledger]['short']]).ids
         group_by_ids = {'model': D_LEDGER[type_ledger]['model'],
-                        'ids': [x.id for x in group_by_ids]}
+                        'ids': group_by_ids}
 
         return lines_group_by, line_account, group_by_ids, open_data
 

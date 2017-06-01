@@ -70,8 +70,8 @@ class AccountStandardLedger(models.TransientModel):
                                    ' * Partner Leger : Journal entries group by partner, with only payable/recevable accounts\n'
                                    ' * Journal Ledger : Journal entries group by journal, without initial balance\n'
                                    ' * Open Ledger : Openning journal at Start date\n')
-    summary = fields.Boolean('Summary', default=False,
-                             help=' * Check : generate a summary report.\n'
+    summary = fields.Boolean('Trial Balance', default=False,
+                             help=' * Check : generate a trial balance.\n'
                              ' * Uncheck : detail report.\n')
     amount_currency = fields.Boolean("With Currency", help="It adds the currency column on report if the currency differs from the company currency.")
     reconciled = fields.Boolean('With Reconciled Entries', default=True,
@@ -110,6 +110,8 @@ class AccountStandardLedger(models.TransientModel):
                                          ('customer_supplier', 'Receivable and Payable Accounts')
                                          ], string="Partner's", required=True, default='customer')
     report_name = fields.Char('Report Name')
+    centralize_account = fields.Boolean('Centralize account centralized.', default=True)
+    reset_exp_acc_start_date = fields.Boolean('Reset expenses/revenue account at start date', default=True)
 
     @api.onchange('account_in_ex_clude')
     def on_change_summary(self):
@@ -120,6 +122,10 @@ class AccountStandardLedger(models.TransientModel):
 
     @api.onchange('type_ledger')
     def on_change_type_ledger(self):
+        if self.type_ledger in ('partner', 'journal', 'open'):
+            self.centralize_account = False
+        else:
+            self.centralize_account = True
         if self.type_ledger != 'partner':
             self.reconciled = True
             self.with_init_balance = True
@@ -149,6 +155,9 @@ class AccountStandardLedger(models.TransientModel):
         return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel')
 
     def pre_compute_form(self):
+        if self.type_ledger in ('partner', 'journal', 'open'):
+            self.centralize_account = False
+            self.reset_exp_acc_start_date = False
         if self.date_from is False:
             self.with_init_balance = False
         if self.type_ledger != 'partner':
@@ -180,6 +189,8 @@ class AccountStandardLedger(models.TransientModel):
             'date_from': self.date_from,
             'date_to': self.date_to,
             'target_move': self.target_move,
+            'centralize_account': self.centralize_account,
+            'reset_exp_acc_start_date': self.reset_exp_acc_start_date,
             'used_context': {},
         })
         lang_code = self.env.context.get('lang') or 'en_US'
@@ -203,6 +214,8 @@ class AccountStandardLedger(models.TransientModel):
         date_from = self.date_from
         date_to = self.date_to
         type_ledger = self.type_ledger
+        centralize_account = self.centralize_account
+        reset_exp_acc_start_date = self.reset_exp_acc_start_date
         detail_unreconcillied_in_init = self.detail_unreconcillied_in_init
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
         date_init_dt = self._generate_date_init(date_from_dt)
@@ -219,6 +232,7 @@ class AccountStandardLedger(models.TransientModel):
         line_account = self._generate_account_dict(accounts)
 
         init_lines_to_compact = []
+        centralized_line_to_compact = []
         new_list = []
         for r in res:
             date_move_dt = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
@@ -259,40 +273,47 @@ class AccountStandardLedger(models.TransientModel):
                     add_in = 'init'
                 else:
                     add_in = 'view'
+                if reset_exp_acc_start_date and not r['include_initial_balance'] and date_from_dt and date_move_dt < date_from_dt:
+                    add_in = 'not add'
 
             r['reduce_balance'] = False
             if add_in == 'init':
-                init_lines_to_compact.append(r)
                 if r['a_type'] in ('payable', 'receivable') and date_move_dt < date_init_dt:
                     r['reduce_balance'] = True
+                init_lines_to_compact.append(r)
             elif add_in == 'view':
-                date_move = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
-                r['date'] = date_move.strftime(date_format)
-                r['date_maturity'] = datetime.strptime(r['date_maturity'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format)
-                r['displayed_name'] = '-'.join(
-                    r[field_name] for field_name in ('ref', 'name')
-                    if r[field_name] not in (None, '', '/')
-                )
-                # if move is matching with the future then replace matching number par *
-                if r['matching_number_id'] in matching_in_futur:
-                    r['matching_number'] = '*'
+                if centralize_account and r['centralized'] and (r['matching_number_id'] and not r['matching_number_id'] in matching_in_futur) and type_ledger == 'general':
+                    centralized_line_to_compact.append(r)
+                    append_r = False
+                else:
+                    date_move = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
+                    r['date'] = date_move.strftime(date_format)
+                    r['date_maturity'] = datetime.strptime(r['date_maturity'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format)
+                    r['displayed_name'] = '-'.join(
+                        r[field_name] for field_name in ('ref', 'name')
+                        if r[field_name] not in (None, '', '/')
+                    )
+                    # if move is matching with the future then replace matching number par *
+                    if r['matching_number_id'] in matching_in_futur:
+                        r['matching_number'] = '*'
 
-                r['type_line'] = 'normal'
-                append_r = True if not type_ledger == 'open' else False
-                if date_from_dt and date_move_dt < date_from_dt:
-                    r['type_line'] = 'init'
-                    r['code'] = 'INIT'
-                    append_r = True
+                    r['type_line'] = 'normal'
+                    append_r = True if not type_ledger == 'open' else False
+                    if date_from_dt and date_move_dt < date_from_dt:
+                        r['type_line'] = 'init'
+                        r['code'] = 'INIT'
+                        append_r = True
 
                 if append_r:
                     new_list.append(r)
 
         init_balance_lines = self._generate_init_balance_lines(type_ledger, init_lines_to_compact, init_balance_history)
+        centralized_line = self._generate_centralized_lines(type_ledger, centralized_line_to_compact)
 
         if type_ledger == 'journal':
             all_lines = new_list
         else:
-            all_lines = init_balance_lines + new_list
+            all_lines = init_balance_lines + new_list + centralized_line
 
         for r in all_lines:
             if r[group_by_field] in lines_group_by.keys():
@@ -362,9 +383,9 @@ class AccountStandardLedger(models.TransientModel):
                      'balance': open_balance, }
 
         group_by_ids = group_by_obj.browse(group_by_ids)
-        group_by_ids = sorted(group_by_ids, key=lambda x: x[D_LEDGER[type_ledger]['short']]).ids
+        group_by_ids = sorted(group_by_ids, key=lambda x: x[D_LEDGER[type_ledger]['short']])
         group_by_ids = {'model': D_LEDGER[type_ledger]['model'],
-                        'ids': group_by_ids}
+                        'ids': [x.id for x in group_by_ids]}
 
         return lines_group_by, line_account, group_by_ids, open_data
 
@@ -417,6 +438,7 @@ class AccountStandardLedger(models.TransientModel):
                 acc.name AS a_name,
                 acc_type.type AS a_type,
                 acc_type.include_initial_balance AS include_initial_balance,
+                acc.centralized AS centralized,
                 account_move_line.ref,
                 m.name AS move_name,
                 account_move_line.name,
@@ -471,17 +493,12 @@ class AccountStandardLedger(models.TransientModel):
             key = (r['account_id'], r[group_by_field])
             reduce_balance = r['reduce_balance'] and not init_balance_history
             if key in init_lines.keys():
-                if reduce_balance:
-                    init_lines[key]['re_debit'] += r['debit']
-                    init_lines[key]['re_credit'] += r['credit']
-                else:
-                    init_lines[key]['debit'] += r['debit']
-                    init_lines[key]['credit'] += r['credit']
+                init_lines[key]['debit'] += r['debit']
+                init_lines[key]['credit'] += r['credit']
             else:
-                init_lines[key] = {'debit': r['debit'] if not reduce_balance else 0,
-                                   'credit': r['credit'] if not reduce_balance else 0,
-                                   're_debit': r['debit'] if reduce_balance else 0,
-                                   're_credit': r['credit'] if reduce_balance else 0,
+                init_lines[key] = {'debit': r['debit'],
+                                   'credit': r['credit'],
+                                   'reduce_balance': reduce_balance,
                                    'account_id': r['account_id'],
                                    group_by_field: r[group_by_field],
                                    'a_code': r['a_code'],
@@ -492,13 +509,18 @@ class AccountStandardLedger(models.TransientModel):
             init_debit = value['debit']
             init_credit = value['credit']
             balance = init_debit - init_credit
-            re_balance = value['re_debit'] - value['re_credit']
-            if float_is_zero(balance, precision_rounding=rounding):
-                balance = 0.0
-            if re_balance > 0:
-                init_debit = abs(re_balance)
-            elif re_balance < 0:
-                init_credit = abs(re_balance)
+            balance = 0.0 if float_is_zero(balance, precision_rounding=rounding) else balance
+
+            if value['reduce_balance']:
+                if balance > 0:
+                    init_debit = abs(balance)
+                    init_credit = 0
+                elif balance < 0:
+                    init_credit = abs(balance)
+                    init_debit = 0
+                elif balance == 0:
+                    init_debit = 0
+                    init_credit = 0
 
             if not float_is_zero(init_debit, precision_rounding=rounding) or not float_is_zero(init_credit, precision_rounding=rounding):
                 init.append({'date': 'Initial balance',
@@ -518,6 +540,50 @@ class AccountStandardLedger(models.TransientModel):
                              'matching_number': '',
                              'type_line': 'init'})
         return init
+
+    def _generate_centralized_lines(self, type_ledger, centralized_line_to_compact):
+        group_by_field = D_LEDGER[type_ledger]['group_by']
+        rounding = self.env.user.company_id.currency_id.rounding or 0.01
+        centralized_lines = {}
+        for r in centralized_line_to_compact:
+            key = r['account_id']
+            if key in centralized_lines.keys():
+                centralized_lines[key]['debit'] += r['debit']
+                centralized_lines[key]['credit'] += r['credit']
+            else:
+                centralized_lines[key] = {'debit': r['debit'],
+                                          'credit': r['credit'],
+                                          'account_id': r['account_id'],
+                                          group_by_field: r[group_by_field],
+                                          'a_code': r['a_code'],
+                                          'a_name': r['a_name'],
+                                          'a_type': r['a_type'], }
+        centra = []
+        for key, value in centralized_lines.items():
+            init_debit = value['debit']
+            init_credit = value['credit']
+            balance = init_debit - init_credit
+            if float_is_zero(balance, precision_rounding=rounding):
+                balance = 0.0
+
+            if not float_is_zero(init_debit, precision_rounding=rounding) or not float_is_zero(init_credit, precision_rounding=rounding):
+                centra.append({'date': 'Centralized',
+                               'date_maturity': '',
+                               'debit': init_debit,
+                               'credit': init_credit,
+                               'code': 'CENT',
+                               'a_code': value['a_code'],
+                               'a_name': value['a_name'],
+                               'move_name': '',
+                               'account_id': value['account_id'],
+                               group_by_field: value[group_by_field],
+                               'displayed_name': '',
+                               'partner_name': '',
+                               'progress': balance,
+                               'amount_currency': 0.0,
+                               'matching_number': '',
+                               'type_line': 'normal'})
+        return centra
 
     def _generate_total(self, sum_debit, sum_credit, balance):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
@@ -597,11 +663,9 @@ class AccountStandardLedger(models.TransientModel):
         return reconcile_clause, list_match_in_futur, list_match_after_init
 
     def _get_name_report(self):
-        name = D_LEDGER[self.type_ledger]['name']
-        report_name = name
+        report_name = D_LEDGER[self.type_ledger]['name']
         if self.summary:
-            name += _(' Summary')
-            report_name += _('_summary')
+            report_name += _(' Trial Balance')
         self.report_name = report_name
 
     def _generate_date_init(self, date_from_dt):

@@ -19,6 +19,7 @@
                     <group col="4">
                         <field name="target_move"/>
                         <field name="reconciled" attrs="{'readonly': [('type_ledger', '!=', 'partner')]}"/>
+                        <field name="centralize_account" attrs="{'readonly': [('type_ledger', '!=', 'general')]}"/>
                         <field name="result_selection" attrs="{'invisible': [('type_ledger', '!=', 'partner')]}"/>
                         <field name="amount_currency" groups="base.group_multi_currency"/>
                     </group>
@@ -29,6 +30,7 @@
                         <group>
                             <field name="date_from"/>
                             <field name="with_init_balance" attrs="{'readonly': ['|', ('date_from', '=', False), ('type_ledger', '!=', 'partner')]}"/>
+                            <field name="reset_exp_acc_start_date" attrs="{'readonly': ['|', ('date_from', '=', False), ('type_ledger', '!=', 'general')]}"/>
                         </group>
                         <group>
                             <field name="date_to"/>

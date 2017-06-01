@@ -587,7 +587,7 @@ class AccountStandardLedger(models.TransientModel):
             for r in sql_query([date_to]):
                 list_match_in_futur.append(r['id'])
             if date_init:
-                for r in sql_query([date_init]):
+                for r in sql_query([date_init - timedelta(days=1)]):
                     list_match_after_init.append(r['id'])
 
             if list_match_in_futur and not self.reconciled:

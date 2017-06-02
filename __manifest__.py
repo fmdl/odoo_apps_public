@@ -12,6 +12,7 @@
     'data': [
         'data/account_report.xml',
         'report/report_account_standard_report.xml',
+        'view/account_view.xml',
         'wizard/account_standard_report_view.xml',
     ],
     'demo': [],

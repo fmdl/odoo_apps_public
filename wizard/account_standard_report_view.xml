@@ -23,8 +23,9 @@
                         <field name="result_selection" attrs="{'invisible': [('type_ledger', '!=', 'partner')]}"/>
                         <field name="amount_currency" groups="base.group_multi_currency"/>
                     </group>
-                    <group col="2">
+                    <group col="4">
                         <field name="periode_date" widget="selection"/>
+                        <field name="month_selec" widget="selection"/>
                     </group>
                     <group col="2">
                         <group>

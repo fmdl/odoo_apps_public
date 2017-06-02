@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
+import calendar
+
 from datetime import datetime, timedelta
 from odoo import api, models, fields, _
 from odoo.tools import float_is_zero
-from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
+from odoo.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT
 
 
 D_LEDGER = {'general': {'name': _('General Ledger'),
@@ -105,6 +107,8 @@ class AccountStandardLedger(models.TransientModel):
                                     ('all', 'All Entries'),
                                     ], string='Target Moves', required=True, default='posted')
     periode_date = fields.Many2one('account.report.standard.ledger.periode', 'Periode', default=_get_periode_date, help="Auto complete Start and End date.")
+    month_selec = fields.Selection([(1, _('01 Junary')), (2, _('02 Febuary')), (3, _('03 March')), (4, _('04 April')), (5, _('05 May')), (6, _('06 June')),
+                                    (7, ('07 Jully')), (8, _('08 August')), (9, _('09 September')), (10, _('10 October')), (11, _('11 November')), (12, _('12 December'))], string='Month')
     result_selection = fields.Selection([('customer', 'Receivable Accounts'),
                                          ('supplier', 'Payable Accounts'),
                                          ('customer_supplier', 'Receivable and Payable Accounts')
@@ -138,6 +142,19 @@ class AccountStandardLedger(models.TransientModel):
         if self.periode_date:
             self.date_from = self.periode_date.date_from
             self.date_to = self.periode_date.date_to
+            if self.month_selec:
+                self.on_change_month_selec()
+
+    @api.onchange('month_selec')
+    def on_change_month_selec(self):
+        if self.periode_date and self.month_selec:
+            date_from = datetime.strptime(self.periode_date.date_from, DEFAULT_SERVER_DATETIME_FORMAT)
+            date_from = datetime(date_from.year, self.month_selec, 1)
+            date_to = datetime(date_from.year, self.month_selec, calendar.monthrange(date_from.year, self.month_selec)[1])
+            self.date_from = date_from.strftime(DEFAULT_SERVER_DATE_FORMAT)
+            self.date_to = date_to.strftime(DEFAULT_SERVER_DATE_FORMAT)
+        elif self.periode_date and not self.month_selec:
+            self.on_change_periode_date()
 
     @api.onchange('date_to')
     def onchange_date_to(self):

@@ -36,7 +36,7 @@ class AccountStandardExcel(ReportXlsx):
 
         data = report.pre_print_report()
 
-        sheet = workbook.add_worksheet(data['name_report'] + _(' Trial Balance'))
+        sheet = workbook.add_worksheet(data['name_report'] + _(' Trial Balance') if not report.summary else '')
         _header_sheet(sheet)
 
         all_lines = []
@@ -203,10 +203,9 @@ class AccountStandardExcel(ReportXlsx):
                         sheet.set_column(j, j, h['larg'])
 
                     _set_table(start_row, row)
-                    sheet.write(save_top_row, 8, '=I%s' % (row + 2), c_middle)
-                    sheet.write(save_top_row, 9, '=J%s' % (row + 2), c_middle)
-                    sheet.write(save_top_row, 10, '=I%s-J%s' % (save_top_row + 1, save_top_row + 1), c_middle)
-
+                    # sheet.write(save_top_row, 8, '=I%s' % (row + 2), c_middle)
+                    # sheet.write(save_top_row, 9, '=J%s' % (row + 2), c_middle)
+                    # sheet.write(save_top_row, 10, '=I%s-J%s' % (save_top_row + 1, save_top_row + 1), c_middle)
                     row += 2
 
             # Pivot workbook

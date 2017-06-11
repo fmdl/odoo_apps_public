@@ -7,7 +7,7 @@
         <field name="type">form</field>
         <field name="arch" type="xml">
             <field name="deprecated" position="after">
-                <field name="centralized"/>
+                <field name="compacted" attrs="{'readonly':[('reconcile','=',False)]}"/>
             </field>
         </field>
     </record>

@@ -115,7 +115,7 @@ class AccountStandardLedger(models.TransientModel):
                                          ('customer_supplier', 'Receivable and Payable Accounts')
                                          ], string="Partner's", required=True, default='customer')
     report_name = fields.Char('Report Name')
-    centralize_account = fields.Boolean('Centralize account centralized.', default=True)
+    compact_reconciled_entrie = fields.Boolean('Compacte account compacted.', default=False)
     reset_exp_acc_start_date = fields.Boolean('Reset expenses/revenue account at start date', default=True)
 
     @api.onchange('account_in_ex_clude')
@@ -128,9 +128,7 @@ class AccountStandardLedger(models.TransientModel):
     @api.onchange('type_ledger')
     def on_change_type_ledger(self):
         if self.type_ledger in ('partner', 'journal', 'open'):
-            self.centralize_account = False
-        else:
-            self.centralize_account = True
+            self.compact_reconciled_entrie = False
         if self.type_ledger != 'partner':
             self.reconciled = True
             self.with_init_balance = True
@@ -174,7 +172,7 @@ class AccountStandardLedger(models.TransientModel):
 
     def pre_compute_form(self):
         if self.type_ledger in ('partner', 'journal', 'open'):
-            self.centralize_account = False
+            self.compact_reconciled_entrie = False
             self.reset_exp_acc_start_date = False
         if self.date_from is False:
             self.with_init_balance = False
@@ -207,7 +205,7 @@ class AccountStandardLedger(models.TransientModel):
             'date_from': self.date_from,
             'date_to': self.date_to,
             'target_move': self.target_move,
-            'centralize_account': self.centralize_account,
+            'compact_reconciled_entrie': self.compact_reconciled_entrie,
             'reset_exp_acc_start_date': self.reset_exp_acc_start_date,
             'used_context': {},
         })
@@ -232,7 +230,7 @@ class AccountStandardLedger(models.TransientModel):
         date_from = self.date_from
         date_to = self.date_to
         type_ledger = self.type_ledger
-        centralize_account = self.centralize_account
+        compact_reconciled_entrie = self.compact_reconciled_entrie
         reset_exp_acc_start_date = self.reset_exp_acc_start_date
         detail_unreconcillied_in_init = self.detail_unreconcillied_in_init
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
@@ -250,7 +248,7 @@ class AccountStandardLedger(models.TransientModel):
         line_account = self._generate_account_dict(accounts)
 
         init_lines_to_compact = []
-        centralized_line_to_compact = []
+        compacted_line_to_compact = []
         new_list = []
         for r in res:
             date_move_dt = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
@@ -300,8 +298,8 @@ class AccountStandardLedger(models.TransientModel):
                     r['reduce_balance'] = True
                 init_lines_to_compact.append(r)
             elif add_in == 'view':
-                if centralize_account and r['centralized'] and (r['matching_number_id'] and not r['matching_number_id'] in matching_in_futur) and type_ledger == 'general':
-                    centralized_line_to_compact.append(r)
+                if compact_reconciled_entrie and r['compacted'] and (r['matching_number_id'] and not r['matching_number_id'] in matching_in_futur) and type_ledger == 'general':
+                    compacted_line_to_compact.append(r)
                     append_r = False
                 else:
                     date_move = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
@@ -326,12 +324,12 @@ class AccountStandardLedger(models.TransientModel):
                     new_list.append(r)
 
         init_balance_lines = self._generate_init_balance_lines(type_ledger, init_lines_to_compact, init_balance_history)
-        centralized_line = self._generate_centralized_lines(type_ledger, centralized_line_to_compact)
+        compacted_line = self._generate_compacted_lines(type_ledger, compacted_line_to_compact)
 
         if type_ledger == 'journal':
             all_lines = new_list
         else:
-            all_lines = init_balance_lines + new_list + centralized_line
+            all_lines = init_balance_lines + new_list + compacted_line
 
         for r in all_lines:
             if r[group_by_field] in lines_group_by.keys():
@@ -456,7 +454,7 @@ class AccountStandardLedger(models.TransientModel):
                 acc.name AS a_name,
                 acc_type.type AS a_type,
                 acc_type.include_initial_balance AS include_initial_balance,
-                acc.centralized AS centralized,
+                acc.compacted AS compacted,
                 account_move_line.ref,
                 m.name AS move_name,
                 account_move_line.name,
@@ -559,17 +557,17 @@ class AccountStandardLedger(models.TransientModel):
                              'type_line': 'init'})
         return init
 
-    def _generate_centralized_lines(self, type_ledger, centralized_line_to_compact):
+    def _generate_compacted_lines(self, type_ledger, compacted_line_to_compact):
         group_by_field = D_LEDGER[type_ledger]['group_by']
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
-        centralized_lines = {}
-        for r in centralized_line_to_compact:
+        compacted_lines = {}
+        for r in compacted_line_to_compact:
             key = r['account_id']
-            if key in centralized_lines.keys():
-                centralized_lines[key]['debit'] += r['debit']
-                centralized_lines[key]['credit'] += r['credit']
+            if key in compacted_lines.keys():
+                compacted_lines[key]['debit'] += r['debit']
+                compacted_lines[key]['credit'] += r['credit']
             else:
-                centralized_lines[key] = {'debit': r['debit'],
+                compacted_lines[key] = {'debit': r['debit'],
                                           'credit': r['credit'],
                                           'account_id': r['account_id'],
                                           group_by_field: r[group_by_field],
@@ -577,7 +575,7 @@ class AccountStandardLedger(models.TransientModel):
                                           'a_name': r['a_name'],
                                           'a_type': r['a_type'], }
         centra = []
-        for key, value in centralized_lines.items():
+        for key, value in compacted_lines.items():
             init_debit = value['debit']
             init_credit = value['credit']
             balance = init_debit - init_credit
@@ -585,11 +583,11 @@ class AccountStandardLedger(models.TransientModel):
                 balance = 0.0
 
             if not float_is_zero(init_debit, precision_rounding=rounding) or not float_is_zero(init_credit, precision_rounding=rounding):
-                centra.append({'date': 'Centralized',
+                centra.append({'date': _('Compacted'),
                                'date_maturity': '',
                                'debit': init_debit,
                                'credit': init_credit,
-                               'code': 'CENT',
+                               'code': _('COMP'),
                                'a_code': value['a_code'],
                                'a_name': value['a_name'],
                                'move_name': '',
@@ -605,7 +603,7 @@ class AccountStandardLedger(models.TransientModel):
 
     def _generate_total(self, sum_debit, sum_credit, balance):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
-        return {'date': 'Total',
+        return {'date': _('Total'),
                 'date_maturity': '',
                 'debit': sum_debit,
                 'credit': sum_credit,

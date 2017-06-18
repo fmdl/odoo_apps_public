@@ -19,7 +19,7 @@
                     <group col="4">
                         <field name="target_move"/>
                         <field name="reconciled" attrs="{'readonly': [('type_ledger', '!=', 'partner')]}"/>
-                        <field name="compact_reconciled_entrie" attrs="{'readonly': [('type_ledger', '!=', 'general')]}"/>
+                        <field name="compact_account" attrs="{'readonly': [('type_ledger', '!=', 'general')]}"/>
                         <field name="result_selection" attrs="{'invisible': [('type_ledger', '!=', 'partner')]}"/>
                         <field name="amount_currency" groups="base.group_multi_currency"/>
                     </group>

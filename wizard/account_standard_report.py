@@ -115,7 +115,7 @@ class AccountStandardLedger(models.TransientModel):
                                          ('customer_supplier', 'Receivable and Payable Accounts')
                                          ], string="Partner's", required=True, default='customer')
     report_name = fields.Char('Report Name')
-    compact_reconciled_entrie = fields.Boolean('Compacte account compacted.', default=False)
+    compact_account = fields.Boolean('Compacte account.', default=False)
     reset_exp_acc_start_date = fields.Boolean('Reset expenses/revenue account at start date', default=True)
 
     @api.onchange('account_in_ex_clude')
@@ -128,7 +128,7 @@ class AccountStandardLedger(models.TransientModel):
     @api.onchange('type_ledger')
     def on_change_type_ledger(self):
         if self.type_ledger in ('partner', 'journal', 'open'):
-            self.compact_reconciled_entrie = False
+            self.compact_account = False
         if self.type_ledger != 'partner':
             self.reconciled = True
             self.with_init_balance = True
@@ -172,7 +172,7 @@ class AccountStandardLedger(models.TransientModel):
 
     def pre_compute_form(self):
         if self.type_ledger in ('partner', 'journal', 'open'):
-            self.compact_reconciled_entrie = False
+            self.compact_account = False
             self.reset_exp_acc_start_date = False
         if self.date_from is False:
             self.with_init_balance = False
@@ -205,7 +205,7 @@ class AccountStandardLedger(models.TransientModel):
             'date_from': self.date_from,
             'date_to': self.date_to,
             'target_move': self.target_move,
-            'compact_reconciled_entrie': self.compact_reconciled_entrie,
+            'compact_account': self.compact_account,
             'reset_exp_acc_start_date': self.reset_exp_acc_start_date,
             'used_context': {},
         })
@@ -230,7 +230,7 @@ class AccountStandardLedger(models.TransientModel):
         date_from = self.date_from
         date_to = self.date_to
         type_ledger = self.type_ledger
-        compact_reconciled_entrie = self.compact_reconciled_entrie
+        compact_account = self.compact_account
         reset_exp_acc_start_date = self.reset_exp_acc_start_date
         detail_unreconcillied_in_init = self.detail_unreconcillied_in_init
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
@@ -298,7 +298,7 @@ class AccountStandardLedger(models.TransientModel):
                     r['reduce_balance'] = True
                 init_lines_to_compact.append(r)
             elif add_in == 'view':
-                if compact_reconciled_entrie and r['compacted'] and (r['matching_number_id'] and not r['matching_number_id'] in matching_in_futur) and type_ledger == 'general':
+                if compact_account and r['compacted'] and type_ledger == 'general': #and (r['matching_number_id'] and not r['matching_number_id'] in matching_in_futur
                     compacted_line_to_compact.append(r)
                     append_r = False
                 else:

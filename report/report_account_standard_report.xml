@@ -33,7 +33,7 @@
                             <p t-if="data['rem_futur_reconciled']">With entries matched with other entries dated after End Date.</p>
                         </div>
                     </div>
-                    <table class="table table-condensed" t-if="data['type_ledger'] == 'partner'">
+                    <table class="table table-condensed" t-if="data['type_ledger'] in ('partner', 'aged',)">
                         <thead>
                             <tr>
                                 <th class="col-xs-1">Code</th>
@@ -93,7 +93,112 @@
                         </tbody>
                     </table>
 
-                    <table class="table-condensed">
+                    <table class="table-condensed" t-if="data['type_ledger'] == 'aged'">
+                        <thead>
+                            <tr>
+                                <th class="col-xs-1">Date</th>
+                                <th class="col-xs-1">JRNL</th>
+                                <th class="col-xs-1">Account</th>
+                                <th class="col-xs-1">Journal entries</th>
+                                <!-- <th class="col-xs-3">Ref</th> -->
+                                <th class="col-xs-1">Due Date</th>
+                                <th class="col-xs-1 text-right">Not Due</th>
+                                <th class="col-xs-1 text-right">0-30</th>
+                                <th class="col-xs-1 text-right">30-60</th>
+                                <th class="col-xs-1 text-right">60-90</th>
+                                <th class="col-xs-1 text-right">90-120</th>
+                                <th class="col-xs-1 text-right">Older</th>
+                                <th class="col-xs-1 text-right">Total</th>
+                                <th class="col-xs-1" t-if="amount_currency">Currency</th>
+                                <th class="col-xs-1">Match.</th>
+                            </tr>
+                        </thead>
+                        <t t-foreach="docs" t-as="o">
+                            <tbody style="border-bottom: 1px solid;">
+                                <tr style="border-bottom: 1px solid #ddd;">
+                                    <td colspan="5">
+                                        <strong t-esc="sum_group_by(data, o, 'displayed_name')"/>
+                                    </td>
+                                    <!-- <td colspan="4">
+                                        <strong t-esc="sum_group_by(data, o, 'name')"/>
+                                    </td> -->
+                                    <td class="text-right">
+                                        <strong t-if="data['sum_group_by_top'] and sum_group_by(data, o, 'not_due')" t-esc="sum_group_by(data, o, 'not_due')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <strong t-if="data['sum_group_by_top'] and sum_group_by(data, o, '0-30')" t-esc="sum_group_by(data, o, '0-30')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <strong t-if="data['sum_group_by_top'] and sum_group_by(data, o, '30-60')" t-esc="sum_group_by(data, o, '30-60')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <strong t-if="data['sum_group_by_top'] and sum_group_by(data, o, '60-90')" t-esc="sum_group_by(data, o, '60-90')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <strong t-if="data['sum_group_by_top'] and sum_group_by(data, o, '90-120')" t-esc="sum_group_by(data, o, '90-120')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <strong t-if="data['sum_group_by_top'] and sum_group_by(data, o, 'older')" t-esc="sum_group_by(data, o, 'older')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <strong t-if="data['sum_group_by_top'] and sum_group_by(data, o, 'total')" t-esc="sum_group_by(data, o, 'total')" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td></td>
+                                </tr>
+                                <tr t-foreach="lines(data, o)" t-as="line" t-if="data['summary'] == False">
+                                    <td style="white-space:nowrap">
+                                        <strong t-if="line['type_line'] == 'total'" t-esc="line['date']"></strong>
+                                    </td>
+                                    <td>
+                                        <span t-if="line['type_line'] == 'normal'" t-esc="line['code']"></span>
+                                    </td>
+                                    <td>
+                                        <span t-if="line['type_line'] == 'normal'" t-esc="line['a_code']"></span>
+                                    </td>
+                                    <td>
+                                        <span t-if="line['type_line'] == 'normal'" t-esc="line['move_name']"></span>
+                                    </td>
+                                    <td>
+                                        <i t-if="line['type_line'] == 'init'" t-esc="line['date_maturity']"></i>
+                                        <span t-if="line['type_line'] == 'normal'" t-esc="line['date_maturity']"></span>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-if="line['not_due'] and line['type_line'] == 'normal'" t-esc="line['not_due']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="line['not_due'] and line['type_line'] == 'total'" t-esc="line['not_due']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-if="line['0-30'] and line['type_line'] == 'normal'" t-esc="line['0-30']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="line['0-30'] and line['type_line'] == 'total'" t-esc="line['0-30']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-if="line['30-60'] and line['type_line'] == 'normal'" t-esc="line['30-60']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="line['30-60'] and line['type_line'] == 'total'" t-esc="line['30-60']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-if="line['60-90'] and line['type_line'] == 'normal'" t-esc="line['60-90']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="line['60-90'] and line['type_line'] == 'total'" t-esc="line['60-90']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-if="line['90-120'] and line['type_line'] == 'normal'" t-esc="line['90-120']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="line['90-120'] and line['type_line'] == 'total'" t-esc="line['90-120']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-if="line['older'] and line['type_line'] == 'normal'" t-esc="line['older']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="line['older'] and line['type_line'] == 'total'" t-esc="line['older']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td class="text-right">
+                                        <span t-if="line['total'] and line['type_line'] == 'normal'" t-esc="line['total']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                        <strong t-if="line['total'] and line['type_line'] == 'total'" t-esc="line['total']" t-esc-options='{"widget": "monetary", "display_currency": res_company.currency_id}'/>
+                                    </td>
+                                    <td>
+                                        <span t-esc="line['matching_number']"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </t>
+                    </table>
+
+                    <table class="table-condensed" t-if="data['type_ledger'] != 'aged'">
                         <thead>
                             <tr>
                                 <th class="col-xs-1">Date</th>
@@ -113,11 +218,8 @@
                         <t t-foreach="docs" t-as="o">
                             <tbody style="border-bottom: 1px solid;">
                                 <tr style="border-bottom: 1px solid #ddd;">
-                                    <td colspan="2">
-                                        <strong t-esc="sum_group_by(data, o, 'code')"/>
-                                    </td>
-                                    <td colspan="4">
-                                        <strong t-esc="sum_group_by(data, o, 'name')"/>
+                                    <td colspan="6">
+                                        <strong t-esc="sum_group_by(data, o, 'displayed_name')"/>
                                     </td>
                                     <td t-if="data['type_ledger'] != 'partner'"></td>
                                     <td class="text-right">

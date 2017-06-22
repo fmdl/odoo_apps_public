@@ -28,6 +28,11 @@ D_LEDGER = {'general': {'name': _('General Ledger'),
                      'model': 'account.account',
                      'short': 'code',
                      },
+            'aged': {'name': _('Aged Balance'),
+                     'group_by': 'partner_id',
+                     'model': 'res.partner',
+                     'short': 'name',
+                     },
             }
 
 
@@ -67,7 +72,7 @@ class AccountStandardLedger(models.TransientModel):
             periode_ids += periode_obj.create(vals)
         return False
 
-    type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger'), ('open', 'Open Ledger')], string='Type', default='general', required=True,
+    type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger'), ('open', 'Open Ledger'), ('aged', 'Aged Balance')], string='Type', default='general', required=True,
                                    help=' * General Ledger : Journal entries group by account\n'
                                    ' * Partner Leger : Journal entries group by partner, with only payable/recevable accounts\n'
                                    ' * Journal Ledger : Journal entries group by journal, without initial balance\n'
@@ -92,7 +97,7 @@ class AccountStandardLedger(models.TransientModel):
                                             ' * Uncheck to see all entries.\n')
     sum_group_by_top = fields.Boolean('Sum on Top', default=False, help='See the sum of element on top.')
     sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True, help='See the sum of element on top.')
-    init_balance_history = fields.Boolean('Payable/receivable initial balance with history.', default=False,
+    init_balance_history = fields.Boolean('Initial balance with history.', default=True,
                                           help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
                                           ' * Uncheck this box to report only the balance before the Start Date\n')
     detail_unreconcillied_in_init = fields.Boolean('Detail of un-reconcillied payable/receivable entries in initiale balance.', default=True,
@@ -127,9 +132,11 @@ class AccountStandardLedger(models.TransientModel):
 
     @api.onchange('type_ledger')
     def on_change_type_ledger(self):
-        if self.type_ledger in ('partner', 'journal', 'open'):
+        if self.type_ledger in ('partner', 'journal', 'open', 'aged'):
             self.compact_account = False
-        if self.type_ledger != 'partner':
+        if self.type_ledger == 'aged':
+            self.date_from = False
+        if self.type_ledger not in ('partner', 'aged',):
             self.reconciled = True
             self.with_init_balance = True
             return {'domain': {'account_in_ex_clude': []}}
@@ -171,12 +178,14 @@ class AccountStandardLedger(models.TransientModel):
         return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel')
 
     def pre_compute_form(self):
-        if self.type_ledger in ('partner', 'journal', 'open'):
+        if self.type_ledger in ('partner', 'journal', 'open', 'aged'):
             self.compact_account = False
             self.reset_exp_acc_start_date = False
+        if self.type_ledger == 'aged':
+            self.date_from = False
         if self.date_from is False:
             self.with_init_balance = False
-        if self.type_ledger != 'partner':
+        if self.type_ledger not in ('partner', 'aged',):
             self.reconciled = True
             self.with_init_balance = True
             if self.date_from is False:
@@ -223,10 +232,50 @@ class AccountStandardLedger(models.TransientModel):
 
         return data
 
+    def do_query_unaffected_earnings(self, date_init_dt):
+        ''' Compute the sum of ending balances for all accounts that are of a type that does not bring forward the balance in new fiscal years.
+            This is needed because we have to display only one line for the initial balance of all expense/revenue accounts in the FEC.
+        '''
+        if not date_init_dt:
+            return []
+        unaffected_earnings_account = self.env['account.account'].search([('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
+        if not unaffected_earnings_account:
+            return []
+        company = self.env.user.company_id
+        sql_query = """
+        SELECT
+            COALESCE(SUM(account_move_line.debit), 0) AS debit,
+            COALESCE(SUM(account_move_line.credit), 0) AS credit,
+            COALESCE(SUM(account_move_line.balance), 0) AS balance,
+            COALESCE(SUM(account_move_line.amount_currency), 0) AS amount_currency
+        FROM
+            account_move AS account_move_line__move_id, account_move_line
+            LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+            LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
+            LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
+        WHERE
+            m.state = %s
+            AND account_move_line.date < %s
+            AND account_move_line.company_id = %s
+            AND account_move_line.move_id=account_move_line__move_id.id
+            AND acc_type.include_initial_balance = 'f'
+        """
+
+        self.env.cr.execute(sql_query, (self.target_move, date_init_dt, company.id))
+        res = self.env.cr.dictfetchall()
+        unaffected_earnings_account = self.env['account.account'].search([('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
+
+        res = res[0]
+        res.update({'account_id': unaffected_earnings_account.id,
+                    'a_name': unaffected_earnings_account.name,
+                    'a_code': unaffected_earnings_account.code,
+                    'a_type':unaffected_earnings_account.user_type_id.id,
+                    'reduce_balance': True})
+        return res
+
     def _generate_data(self, data, date_format):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         with_init_balance = self.with_init_balance
-        init_balance_history = self.init_balance_history
         date_from = self.date_from
         date_to = self.date_to
         type_ledger = self.type_ledger
@@ -294,14 +343,16 @@ class AccountStandardLedger(models.TransientModel):
 
             r['reduce_balance'] = False
             if add_in == 'init':
-                if r['a_type'] in ('payable', 'receivable') and date_move_dt < date_init_dt:
+                if date_move_dt < date_init_dt:  # r['a_type'] in ('payable', 'receivable') and
                     r['reduce_balance'] = True
                 init_lines_to_compact.append(r)
             elif add_in == 'view':
-                if compact_account and r['compacted'] and type_ledger == 'general': #and (r['matching_number_id'] and not r['matching_number_id'] in matching_in_futur
+                if compact_account and r['compacted'] and type_ledger == 'general':  # and (r['matching_number_id'] and not r['matching_number_id'] in matching_in_futur
                     compacted_line_to_compact.append(r)
                     append_r = False
                 else:
+                    if type_ledger == 'aged':
+                        r.update(self.get_aged_balance(r, rounding))
                     date_move = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
                     r['date'] = date_move.strftime(date_format)
                     r['date_maturity'] = datetime.strptime(r['date_maturity'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format)
@@ -323,7 +374,10 @@ class AccountStandardLedger(models.TransientModel):
                 if append_r:
                     new_list.append(r)
 
-        init_balance_lines = self._generate_init_balance_lines(type_ledger, init_lines_to_compact, init_balance_history)
+        init_balance_lines = []
+        if type_ledger in ('general'):
+            init_lines_to_compact.append(self.do_query_unaffected_earnings(date_init_dt))
+        init_balance_lines.extend(self._generate_init_balance_lines(type_ledger, init_lines_to_compact, ))
         compacted_line = self._generate_compacted_lines(type_ledger, compacted_line_to_compact)
 
         if type_ledger == 'journal':
@@ -350,11 +404,19 @@ class AccountStandardLedger(models.TransientModel):
             balance = 0.0
             sum_debit = 0.0
             sum_credit = 0.0
+
+            data_aged = {}
+            if type_ledger == 'aged':
+                data_aged = {'not_due': False, '0-30': False, '30-60': False, '60-90': False, '90-120': False, 'older': False, 'total': False}
+
             for r in value['new_lines']:
                 balance += r['debit'] - r['credit']
-                r['progress'] = balance
                 if float_is_zero(balance, precision_rounding=rounding):
-                    r['progress'] = 0.0
+                    balance = 0.0
+                r['progress'] = balance
+
+                if type_ledger == 'aged':
+                    data_aged = self.get_data_aged_sum(data_aged, r, rounding)
 
                 sum_debit += r['debit']
                 sum_credit += r['credit']
@@ -372,16 +434,17 @@ class AccountStandardLedger(models.TransientModel):
             balance = sum_debit - sum_credit
             if float_is_zero(balance, precision_rounding=rounding):
                 balance = 0.0
-
             if data['sum_group_by_bottom']:
-                lines_group_by[group_by]['new_lines'].append(self._generate_total(sum_debit, sum_credit, balance))
+                lines_group_by[group_by]['new_lines'].append(self._generate_total(sum_debit, sum_credit, balance, data_aged))
 
             lines_group_by[group_by]['s_debit'] = False if float_is_zero(sum_debit, precision_rounding=rounding) else True
             lines_group_by[group_by]['s_credit'] = False if float_is_zero(sum_credit, precision_rounding=rounding) else True
             lines_group_by[group_by]['debit - credit'] = balance
             lines_group_by[group_by]['debit'] = sum_debit
             lines_group_by[group_by]['credit'] = sum_credit
-            lines_group_by[group_by]['code'], lines_group_by[group_by]['name'] = self._get_sum_name(group_by_obj.browse(group_by))
+            lines_group_by[group_by]['code'], lines_group_by[group_by]['name'], lines_group_by[group_by]['displayed_name'] = self._get_sum_name(group_by_obj.browse(group_by))
+
+            lines_group_by[group_by].update(data_aged)
 
             group_by_ids.append(group_by)
 
@@ -390,6 +453,7 @@ class AccountStandardLedger(models.TransientModel):
             if value['active'] is False:
                 del line_account[key]
 
+        # compute open balance
         open_balance = open_debit - open_credit
         if float_is_zero(open_balance, precision_rounding=rounding):
             open_balance = 0.0
@@ -405,23 +469,61 @@ class AccountStandardLedger(models.TransientModel):
 
         return lines_group_by, line_account, group_by_ids, open_data
 
+    def get_data_aged_sum(self, data_aged, r, rounding):
+        total = 0.0
+        for value in ['not_due', '0-30', '30-60', '60-90', '90-120', 'older', 'total']:
+            if data_aged[value]:
+                data_aged[value] += r[value]
+            else:
+                data_aged[value] = r[value]
+        if float_is_zero(data_aged['total'], precision_rounding=rounding):
+            data_aged['total'] = False
+        return data_aged
+
+    def get_aged_balance(self, r, rounding):
+        date_maturity = datetime.strptime(r['date_maturity'], DEFAULT_SERVER_DATE_FORMAT)
+        date_to = datetime.strptime(self.date_to, DEFAULT_SERVER_DATE_FORMAT)
+        data_aged = {'not_due': False, '0-30': False, '30-60': False, '60-90': False, '90-120': False, 'older': False, 'total': False}
+        balance = r['debit'] - r['credit']
+        if float_is_zero(balance, precision_rounding=rounding):
+            balance = 0.0
+        else:
+            data_aged['total'] = balance
+        if date_maturity < (date_to - timedelta(days=120)):
+            data_aged['older'] = balance
+        elif date_maturity < (date_to - timedelta(days=90)):
+            data_aged['90-120'] = balance
+        elif date_maturity < (date_to - timedelta(days=60)):
+            data_aged['60-90'] = balance
+        elif date_maturity < (date_to - timedelta(days=30)):
+            data_aged['30-60'] = balance
+        elif date_maturity < (date_to):
+            data_aged['0-30'] = balance
+        else:
+            data_aged['not_due'] = balance
+        return data_aged
+
     def _get_sum_name(self, group_by):
-        code = ''
         name = ''
+        code = ''
+        display_name = ''
         if self.type_ledger in ('general', 'journal', 'open'):
+            display_name = "%s - %s" % (group_by.code, group_by.name)
             code = group_by.code
             name = group_by.name
-        elif self.type_ledger == 'partner':
+        elif self.type_ledger in ('partner', 'aged',):
             if group_by.ref:
+                display_name = '%s - %s' % (group_by.ref, group_by.name)
                 code = group_by.ref
                 name = group_by.name
             else:
+                display_name = group_by.name
                 code = group_by.name
                 name = ''
-        return code, name
+        return code, name, display_name
 
     def _generate_sql(self, data, accounts, reconcile_clause_data, date_to, date_from):
-        params = [self.target_move, tuple(accounts.ids), tuple(self.journal_ids.ids)]
+        params = [self.target_move, self.env.user.company_id.id, tuple(accounts.ids), tuple(self.journal_ids.ids)]
 
         date_clause = ''
         if date_to:
@@ -435,7 +537,7 @@ class AccountStandardLedger(models.TransientModel):
         if self.partner_ids:
             partner_clause = 'AND account_move_line.partner_id IN %s'
             params.append(tuple(self.partner_ids.ids))
-        elif self.type_ledger == 'partner':
+        elif self.type_ledger in ('partner', 'aged',):
             partner_clause = ' AND account_move_line.partner_id IS NOT NULL '
 
         reconcile_clause = ''
@@ -480,6 +582,7 @@ class AccountStandardLedger(models.TransientModel):
                 LEFT JOIN res_partner prt ON (account_move_line.partner_id = prt.id)
             WHERE
                 m.state = %s
+                AND account_move_line.company_id = %s
                 AND account_move_line.move_id=account_move_line__move_id.id
                 AND account_move_line.account_id IN %s
                 AND account_move_line.journal_id IN %s""" + date_clause + partner_clause + reconcile_clause + """
@@ -501,13 +604,14 @@ class AccountStandardLedger(models.TransientModel):
             }
         return line_account
 
-    def _generate_init_balance_lines(self, type_ledger, init_lines_to_compact, init_balance_history):
+    def _generate_init_balance_lines(self, type_ledger, init_lines_to_compact):
         group_by_field = D_LEDGER[type_ledger]['group_by']
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         init_lines = {}
+
         for r in init_lines_to_compact:
             key = (r['account_id'], r[group_by_field])
-            reduce_balance = r['reduce_balance'] and not init_balance_history
+            reduce_balance = r['reduce_balance'] and not self.init_balance_history
             if key in init_lines.keys():
                 init_lines[key]['debit'] += r['debit']
                 init_lines[key]['credit'] += r['credit']
@@ -568,12 +672,12 @@ class AccountStandardLedger(models.TransientModel):
                 compacted_lines[key]['credit'] += r['credit']
             else:
                 compacted_lines[key] = {'debit': r['debit'],
-                                          'credit': r['credit'],
-                                          'account_id': r['account_id'],
-                                          group_by_field: r[group_by_field],
-                                          'a_code': r['a_code'],
-                                          'a_name': r['a_name'],
-                                          'a_type': r['a_type'], }
+                                        'credit': r['credit'],
+                                        'account_id': r['account_id'],
+                                        group_by_field: r[group_by_field],
+                                        'a_code': r['a_code'],
+                                        'a_name': r['a_name'],
+                                        'a_type': r['a_type'], }
         centra = []
         for key, value in compacted_lines.items():
             init_debit = value['debit']
@@ -601,9 +705,9 @@ class AccountStandardLedger(models.TransientModel):
                                'type_line': 'normal'})
         return centra
 
-    def _generate_total(self, sum_debit, sum_credit, balance):
+    def _generate_total(self, sum_debit, sum_credit, balance, data_aged):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
-        return {'date': _('Total'),
+        data = {'date': _('Total'),
                 'date_maturity': '',
                 'debit': sum_debit,
                 'credit': sum_credit,
@@ -619,11 +723,13 @@ class AccountStandardLedger(models.TransientModel):
                 'amount_currency': 0.0,
                 'matching_number': '',
                 'type_line': 'total', }
+        data.update(data_aged)
+        return data
 
     def _search_account(self):
         type_ledger = self.type_ledger
         domain = [('deprecated', '=', False), ]
-        if type_ledger == 'partner':
+        if type_ledger in ('partner', 'aged',):
             result_selection = self.result_selection
             if result_selection == 'supplier':
                 acc_type = ['payable']
@@ -681,7 +787,7 @@ class AccountStandardLedger(models.TransientModel):
     def _get_name_report(self):
         report_name = D_LEDGER[self.type_ledger]['name']
         if self.summary:
-            report_name += _(' Trial Balance')
+            report_name += _(' Balance')
         self.report_name = report_name
 
     def _generate_date_init(self, date_from_dt):

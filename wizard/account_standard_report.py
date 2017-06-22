@@ -235,7 +235,6 @@ class AccountStandardLedger(models.TransientModel):
     def _generate_data(self, data, date_format):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         with_init_balance = self.with_init_balance
-        init_balance_history = self.init_balance_history
         date_from = self.date_from
         date_to = self.date_to
         type_ledger = self.type_ledger
@@ -334,7 +333,7 @@ class AccountStandardLedger(models.TransientModel):
                 if append_r:
                     new_list.append(r)
 
-        init_balance_lines = self._generate_init_balance_lines(type_ledger, init_lines_to_compact, init_balance_history)
+        init_balance_lines = self._generate_init_balance_lines(type_ledger, init_lines_to_compact)
         compacted_line = self._generate_compacted_lines(type_ledger, compacted_line_to_compact)
 
         if type_ledger == 'journal':
@@ -560,13 +559,14 @@ class AccountStandardLedger(models.TransientModel):
             }
         return line_account
 
-    def _generate_init_balance_lines(self, type_ledger, init_lines_to_compact, init_balance_history):
+    def _generate_init_balance_lines(self, type_ledger, init_lines_to_compact):
         group_by_field = D_LEDGER[type_ledger]['group_by']
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         init_lines = {}
+
         for r in init_lines_to_compact:
             key = (r['account_id'], r[group_by_field])
-            reduce_balance = r['reduce_balance'] and not init_balance_history
+            reduce_balance = r['reduce_balance'] and not self.init_balance_history
             if key in init_lines.keys():
                 init_lines[key]['debit'] += r['debit']
                 init_lines[key]['credit'] += r['credit']

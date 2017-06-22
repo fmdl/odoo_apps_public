@@ -270,7 +270,7 @@ class AccountStandardExcel(ReportXlsx):
 
                 all_lines = []
                 for group_by in data['group_by_data']['ids']:
-                    all_lines.update(data['lines_group_by'][group_by])
+                    all_lines.append(data['lines_group_by'][group_by])
                 if all_lines:
                     # Head
                     head = [

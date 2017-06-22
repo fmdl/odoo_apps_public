@@ -97,7 +97,7 @@ class AccountStandardLedger(models.TransientModel):
                                             ' * Uncheck to see all entries.\n')
     sum_group_by_top = fields.Boolean('Sum on Top', default=False, help='See the sum of element on top.')
     sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True, help='See the sum of element on top.')
-    init_balance_history = fields.Boolean('Payable/receivable initial balance with history.', default=False,
+    init_balance_history = fields.Boolean('Initial balance with history.', default=True,
                                           help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
                                           ' * Uncheck this box to report only the balance before the Start Date\n')
     detail_unreconcillied_in_init = fields.Boolean('Detail of un-reconcillied payable/receivable entries in initiale balance.', default=True,
@@ -232,6 +232,47 @@ class AccountStandardLedger(models.TransientModel):
 
         return data
 
+    def do_query_unaffected_earnings(self, date_init_dt):
+        ''' Compute the sum of ending balances for all accounts that are of a type that does not bring forward the balance in new fiscal years.
+            This is needed because we have to display only one line for the initial balance of all expense/revenue accounts in the FEC.
+        '''
+        if not date_init_dt:
+            return []
+        unaffected_earnings_account = self.env['account.account'].search([('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
+        if not unaffected_earnings_account:
+            return []
+        company = self.env.user.company_id
+        sql_query = """
+        SELECT
+            COALESCE(SUM(account_move_line.debit), 0) AS debit,
+            COALESCE(SUM(account_move_line.credit), 0) AS credit,
+            COALESCE(SUM(account_move_line.balance), 0) AS balance,
+            COALESCE(SUM(account_move_line.amount_currency), 0) AS amount_currency
+        FROM
+            account_move AS account_move_line__move_id, account_move_line
+            LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+            LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
+            LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
+        WHERE
+            m.state = %s
+            AND account_move_line.date < %s
+            AND account_move_line.company_id = %s
+            AND account_move_line.move_id=account_move_line__move_id.id
+            AND acc_type.include_initial_balance = 'f'
+        """
+
+        self.env.cr.execute(sql_query, (self.target_move, date_init_dt, company.id))
+        res = self.env.cr.dictfetchall()
+        unaffected_earnings_account = self.env['account.account'].search([('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
+
+        res = res[0]
+        res.update({'account_id': unaffected_earnings_account.id,
+                    'a_name': unaffected_earnings_account.name,
+                    'a_code': unaffected_earnings_account.code,
+                    'a_type':unaffected_earnings_account.user_type_id.id,
+                    'reduce_balance': True})
+        return res
+
     def _generate_data(self, data, date_format):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
         with_init_balance = self.with_init_balance
@@ -302,7 +343,7 @@ class AccountStandardLedger(models.TransientModel):
 
             r['reduce_balance'] = False
             if add_in == 'init':
-                if r['a_type'] in ('payable', 'receivable') and date_move_dt < date_init_dt:
+                if date_move_dt < date_init_dt:  # r['a_type'] in ('payable', 'receivable') and
                     r['reduce_balance'] = True
                 init_lines_to_compact.append(r)
             elif add_in == 'view':
@@ -333,7 +374,10 @@ class AccountStandardLedger(models.TransientModel):
                 if append_r:
                     new_list.append(r)
 
-        init_balance_lines = self._generate_init_balance_lines(type_ledger, init_lines_to_compact)
+        init_balance_lines = []
+        if type_ledger in ('general'):
+            init_lines_to_compact.append(self.do_query_unaffected_earnings(date_init_dt))
+        init_balance_lines.append(self._generate_init_balance_lines(type_ledger, init_lines_to_compact, ))
         compacted_line = self._generate_compacted_lines(type_ledger, compacted_line_to_compact)
 
         if type_ledger == 'journal':
@@ -479,7 +523,7 @@ class AccountStandardLedger(models.TransientModel):
         return code, name, display_name
 
     def _generate_sql(self, data, accounts, reconcile_clause_data, date_to, date_from):
-        params = [self.target_move, tuple(accounts.ids), tuple(self.journal_ids.ids)]
+        params = [self.target_move, self.env.user.company_id.id, tuple(accounts.ids), tuple(self.journal_ids.ids)]
 
         date_clause = ''
         if date_to:
@@ -538,6 +582,7 @@ class AccountStandardLedger(models.TransientModel):
                 LEFT JOIN res_partner prt ON (account_move_line.partner_id = prt.id)
             WHERE
                 m.state = %s
+                AND account_move_line.company_id = %s
                 AND account_move_line.move_id=account_move_line__move_id.id
                 AND account_move_line.account_id IN %s
                 AND account_move_line.journal_id IN %s""" + date_clause + partner_clause + reconcile_clause + """

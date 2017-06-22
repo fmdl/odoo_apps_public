@@ -377,7 +377,7 @@ class AccountStandardLedger(models.TransientModel):
         init_balance_lines = []
         if type_ledger in ('general'):
             init_lines_to_compact.append(self.do_query_unaffected_earnings(date_init_dt))
-        init_balance_lines.append(self._generate_init_balance_lines(type_ledger, init_lines_to_compact, ))
+        init_balance_lines.extend(self._generate_init_balance_lines(type_ledger, init_lines_to_compact, ))
         compacted_line = self._generate_compacted_lines(type_ledger, compacted_line_to_compact)
 
         if type_ledger == 'journal':

@@ -32,8 +32,7 @@ class AccountStandardExcel(ReportXlsx):
             sheet.write(3, 4, _('All Entries') if data['target_move'] == 'all' else _('All Posted Entries'))
 
             sheet.write(2, 6, _('Only UnReconciled Entries') if data['reconciled'] is False else _('With Reconciled Entries'), bold)
-            sheet.write(3, 6, _('With entries matched with other entries dated after End Date.') if data['rem_futur_reconciled'] else '')
-
+            
         data = report.pre_print_report()
 
         if report.type_ledger == 'aged':

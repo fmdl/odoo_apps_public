@@ -85,24 +85,14 @@ class AccountStandardLedger(models.TransientModel):
                                 help='Only for entrie with a payable/receivable account.\n'
                                 ' * Check this box to see un-reconcillied and reconciled entries with payable.\n'
                                 ' * Uncheck to see only un-reconcillied entries. Can be use only with parnter ledger.\n')
-    rem_futur_reconciled = fields.Boolean('With entries matched with other entries dated after End Date.', default=False,
-                                          help=' * Check : Reconciled Entries matched with futur is considered like unreconciled. Matching number in futur is replace by *.\n'
-                                          ' * Uncheck : Reconciled Entries matched with futur is considered like reconciled. Carfull use if "With Reconciled Entries" is uncheck.\n')
     partner_ids = fields.Many2many(comodel_name='res.partner', string='Partners', domain=['|', ('is_company', '=', True), ('parent_id', '=', False)], help='If empty, get all partners')
     account_methode = fields.Selection([('include', 'Include'), ('exclude', 'Exclude')], string="Methode")
     account_in_ex_clude = fields.Many2many(comodel_name='account.account', string='Accounts', help='If empty, get all accounts')
-    with_init_balance = fields.Boolean('With Initial Report at Start Date', default=False,
-                                       help='The initial balance is compute with the fiscal date of company.\n'
-                                            ' * Check this box to generate the summary of initial balance.\n'
-                                            ' * Uncheck to see all entries.\n')
     sum_group_by_top = fields.Boolean('Sum on Top', default=False, help='See the sum of element on top.')
     sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True, help='See the sum of element on top.')
     init_balance_history = fields.Boolean('Initial balance with history.', default=True,
                                           help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
                                           ' * Uncheck this box to report only the balance before the Start Date\n')
-    detail_unreconcillied_in_init = fields.Boolean('Detail of un-reconcillied payable/receivable entries in initiale balance.', default=True,
-                                                   help=' * Check : Add the detail of entries un-reconcillied and with payable/receivable account in the report.\n'
-                                                   ' * Unckeck : no detail.\n')
     company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.env.user.company_id)
     journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]),
                                    help='Select journal, for the Open Ledger you need to set all journals.')
@@ -138,7 +128,6 @@ class AccountStandardLedger(models.TransientModel):
             self.date_from = False
         if self.type_ledger not in ('partner', 'aged',):
             self.reconciled = True
-            self.with_init_balance = True
             return {'domain': {'account_in_ex_clude': []}}
         self.account_in_ex_clude = False
         return {'domain': {'account_in_ex_clude': [('internal_type', 'in', ('receivable', 'payable'))]}}
@@ -162,13 +151,6 @@ class AccountStandardLedger(models.TransientModel):
         elif self.periode_date and not self.month_selec:
             self.on_change_periode_date()
 
-    @api.onchange('date_to')
-    def onchange_date_to(self):
-        if self.date_to is False:
-            self.rem_futur_reconciled = False
-        else:
-            self.rem_futur_reconciled = True
-
     def print_pdf_report(self):
         self.ensure_one()
         return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data={'active_id': self.id})
@@ -183,13 +165,8 @@ class AccountStandardLedger(models.TransientModel):
             self.reset_exp_acc_start_date = False
         if self.type_ledger == 'aged':
             self.date_from = False
-        if self.date_from is False:
-            self.with_init_balance = False
         if self.type_ledger not in ('partner', 'aged',):
             self.reconciled = True
-            self.with_init_balance = True
-            if self.date_from is False:
-                self.with_init_balance = False
             self.partner_ids = False
 
     def pre_print_report(self):
@@ -197,8 +174,6 @@ class AccountStandardLedger(models.TransientModel):
         data = {}
         data.update({
             'reconciled': self.reconciled,
-            'rem_futur_reconciled': self.rem_futur_reconciled,
-            'with_init_balance': self.with_init_balance,
             'amount_currency': self.amount_currency,
             'sum_group_by_top': self.summary or self.sum_group_by_top,
             'sum_group_by_bottom': self.sum_group_by_bottom,
@@ -208,7 +183,6 @@ class AccountStandardLedger(models.TransientModel):
             'account_methode': self.account_methode,
             'account_in_ex_clude': self.account_in_ex_clude.ids,
             'init_balance_history': self.init_balance_history,
-            'detail_unreconcillied_in_init': self.detail_unreconcillied_in_init,
             'journal_ids': self.journal_ids.ids,
             'result_selection': self.result_selection,
             'date_from': self.date_from,
@@ -275,13 +249,11 @@ class AccountStandardLedger(models.TransientModel):
 
     def _generate_data(self, data, date_format):
         rounding = self.env.user.company_id.currency_id.rounding or 0.01
-        with_init_balance = self.with_init_balance
         date_from = self.date_from
         date_to = self.date_to
         type_ledger = self.type_ledger
         compact_account = self.compact_account
         reset_exp_acc_start_date = self.reset_exp_acc_start_date
-        detail_unreconcillied_in_init = self.detail_unreconcillied_in_init
         date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
         date_init_dt = self._generate_date_init(date_from_dt)
         accounts = self._search_account()
@@ -313,8 +285,8 @@ class AccountStandardLedger(models.TransientModel):
             #       -> pour affichage
 
             add_in = 'view'
-            if with_init_balance:
-                if r['a_type'] in ('payable', 'receivable') and detail_unreconcillied_in_init:
+            if self.date_from and type_ledger != 'aged':
+                if r['a_type'] in ('payable', 'receivable'):
                     if not r['matching_number_id']:
                         matched_in_future = False
                         matched_after_init = False
@@ -759,7 +731,7 @@ class AccountStandardLedger(models.TransientModel):
         # when an entrie a matching number and this matching number is linked with
         # entries witch the date is gretter than date_to, then
         # the entrie is considered like unreconciled.
-        if self.rem_futur_reconciled and self.date_to:
+        if self.date_to:
             date_to = datetime.strptime(self.date_to, DEFAULT_SERVER_DATE_FORMAT)
 
             def sql_query(params):

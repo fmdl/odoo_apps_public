@@ -20,7 +20,6 @@
                             <t t-if="data['date_to']">
                                 <strong>End Date :</strong>
                                 <span t-esc="data['date_to']"/></t>
-                            <p t-if="data['with_init_balance']">With Initial Balance.</p>
                         </div>
                         <div class="col-xs-3">
                             <strong>Target Moves:</strong>
@@ -30,7 +29,6 @@
                         <div class="col-xs-3">
                             <strong t-if="data['reconciled'] == True">With Reconciled Entries</strong>
                             <strong t-if="data['reconciled'] == False">Only UnReconciled Entries</strong>
-                            <p t-if="data['rem_futur_reconciled']">With entries matched with other entries dated after End Date.</p>
                         </div>
                     </div>
                     <table class="table table-condensed" t-if="data['type_ledger'] in ('partner', 'aged',)">

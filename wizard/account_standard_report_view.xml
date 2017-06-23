@@ -30,12 +30,10 @@
                     <group col="2">
                         <group>
                             <field name="date_from"/>
-                            <field name="with_init_balance" attrs="{'readonly': ['|', ('date_from', '=', False), ('type_ledger', 'not in', ('partner', 'aged',))]}"/>
                             <field name="reset_exp_acc_start_date" attrs="{'readonly': ['|', ('date_from', '=', False), ('type_ledger', '!=', 'general')]}"/>
                         </group>
                         <group>
                             <field name="date_to"/>
-                            <field name="rem_futur_reconciled" attrs="{'readonly': [('date_to', '=', False)]}"/>
                         </group>
                     </group>
                     <group>
@@ -52,7 +50,6 @@
                         <field name="sum_group_by_top" attrs="{'readonly': [('summary', '=', True)]}"/>
                         <field name="sum_group_by_bottom" attrs="{'readonly': [('summary', '=', True)]}"/>
                         <field name="init_balance_history"/>
-                        <field name="detail_unreconcillied_in_init"/>
                     </group>
                 </form>
             </field>

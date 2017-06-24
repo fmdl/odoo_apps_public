@@ -53,7 +53,7 @@ class AccountStandardLedgerLines(models.TransientModel):
 
 class AccountStandardLedgerLines(models.TransientModel):
     _name = 'account.report.standard.ledger.line'
-    # _order = 'type,date' #,move_id,account_id
+    _order = 'type,date,id' #,move_id,account_id
 
     report_id = fields.Many2one('account.report.standard.ledger.report')
     account_id = fields.Many2one('account.account')
@@ -100,6 +100,7 @@ class AccountStandardLedger(models.TransientModel):
             periode_ids += periode_obj.create(vals)
         return False
 
+    name = fields.Char()
     type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger'), ('open', 'Open Ledger'), ('aged', 'Aged Balance')], string='Type', default='general', required=True,
                                    help=' * General Ledger : Journal entries group by account\n'
                                    ' * Partner Leger : Journal entries group by partner, with only payable/recevable accounts\n'
@@ -121,7 +122,7 @@ class AccountStandardLedger(models.TransientModel):
     init_balance_history = fields.Boolean('Initial balance with history.', default=True,
                                           help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
                                           ' * Uncheck this box to report only the balance before the Start Date\n')
-    company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.company_id)
+    company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.env.user.company_id)
     journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]),
                                    help='Select journal, for the Open Ledger you need to set all journals.')
     date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
@@ -183,6 +184,20 @@ class AccountStandardLedger(models.TransientModel):
         elif self.periode_date and not self.month_selec:
             self.on_change_periode_date()
 
+    def action_view_lines(self):
+        self.ensure_one()
+        self.report_id = self.env['account.report.standard.ledger.report'].create({})
+        self.compute_data()
+        return {
+            'name': _("Ledger Lines"),
+            'view_type': 'form',
+            'view_mode': 'tree,form',
+            'res_model': 'account.report.standard.ledger.line',
+            'type': 'ir.actions.act_window',
+            'domain': "[('report_id','=',%s)]" % (self.report_id.id),
+            'target': 'current',
+        }
+
     def print_pdf_report(self):
         self.ensure_one()
         self.report_id = self.env['account.report.standard.ledger.report'].create({})
@@ -219,6 +234,7 @@ class AccountStandardLedger(models.TransientModel):
         t = time.time()
         self.account_ids = self._search_account()
         self.partner_ids = self._search_partner()
+        self._get_name_report()
         # self.lines_ids.unlink()
         if self.type_ledger != 'open':
             self._sql_unaffected_earnings()
@@ -536,13 +552,14 @@ class AccountStandardLedger(models.TransientModel):
         # lines_table
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, debit, credit, balance)
+            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance)
         SELECT
             %s AS report_id,
             %s AS create_uid,
             NOW() AS create_date,
             MIN(account_move_line.account_id) AS account_id,
             '3_compact' AS type,
+            %s AS date,
             COALESCE(SUM(account_move_line.debit), 0) AS debit,
             COALESCE(SUM(account_move_line.credit), 0) AS credit,
             COALESCE(SUM(account_move_line.balance), 0) AS balance
@@ -565,9 +582,11 @@ class AccountStandardLedger(models.TransientModel):
         """
 
         params = [
-            # lines_table
+            # SELECT
             self.report_id.id,
             self.env.uid,
+            self.date_from,
+            # WHERE
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
             self.company_id.id,
             self.date_from,
@@ -582,13 +601,14 @@ class AccountStandardLedger(models.TransientModel):
     def _sql_account_total(self):
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, debit, credit, balance)
+            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance)
         SELECT
             %s AS report_id,
             %s AS create_uid,
             NOW() AS create_date,
             MIN(account_id),
             '4_total' AS type,
+            %s AS date,
             COALESCE(SUM(debit), 0) AS debit,
             COALESCE(SUM(credit), 0) AS credit,
             COALESCE(SUM(balance), 0) AS balance
@@ -601,8 +621,11 @@ class AccountStandardLedger(models.TransientModel):
             account_id
         """
         params = [
+            # SELECT
             self.report_id.id,
             self.env.uid,
+            self.date_from,
+            # WHERE
             self.report_id.id,
         ]
         self.env.cr.execute(query, tuple(params))
@@ -610,13 +633,14 @@ class AccountStandardLedger(models.TransientModel):
     def _sql_partner_total(self):
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, partner_id, type, debit, credit, balance)
+            (report_id, create_uid, create_date, partner_id, type, date, debit, credit, balance)
         SELECT
             %s AS report_id,
             %s AS create_uid,
             NOW() AS create_date,
             MIN(partner_id),
             '4_total' AS type,
+            %s AS date,
             COALESCE(SUM(debit), 0) AS debit,
             COALESCE(SUM(credit), 0) AS credit,
             COALESCE(SUM(balance), 0) AS balance
@@ -631,6 +655,7 @@ class AccountStandardLedger(models.TransientModel):
         params = [
             self.report_id.id,
             self.env.uid,
+            self.date_from,
             self.report_id.id,
         ]
         self.env.cr.execute(query, tuple(params))
@@ -669,3 +694,4 @@ class AccountStandardLedger(models.TransientModel):
         if self.summary:
             report_name += _(' Balance')
         self.report_name = report_name
+        self.name = report_name

@@ -13,9 +13,10 @@
                 <field name="partner_id"/>
                 <field name="debit" sum="Total"/>
                 <field name="credit" sum="Total"/>
-                <field name="balance"/>
+                <field name="balance" sum="Total"/>
                 <field name="cumul_balance_account"/>
                 <field name="full_reconcile_id"/>
+                <field name="reconciled"/>
             </tree>
         </field>
     </record>

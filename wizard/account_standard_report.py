@@ -53,7 +53,7 @@ class AccountStandardLedgerLines(models.TransientModel):
 
 class AccountStandardLedgerLines(models.TransientModel):
     _name = 'account.report.standard.ledger.line'
-    _order = 'type,date,id' #,move_id,account_id
+    _order = 'type,date,id'  # ,move_id,account_id
 
     report_id = fields.Many2one('account.report.standard.ledger.report')
     account_id = fields.Many2one('account.account')
@@ -67,7 +67,7 @@ class AccountStandardLedgerLines(models.TransientModel):
     debit = fields.Float()
     credit = fields.Float()
     balance = fields.Float()
-    cumul_balance_account = fields.Float()
+    cumul_balance = fields.Float()
     full_reconcile_id = fields.Many2one('account.full.reconcile')
     reconciled = fields.Boolean()
 
@@ -265,7 +265,7 @@ class AccountStandardLedger(models.TransientModel):
 
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance)
+            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance, cumul_balance)
         SELECT
             %s AS report_id,
             %s AS create_uid,
@@ -275,7 +275,8 @@ class AccountStandardLedger(models.TransientModel):
             %s AS date,
             CASE WHEN %s THEN COALESCE(SUM(account_move_line.debit), 0) ELSE CASE WHEN COALESCE(sum(account_move_line.balance), 0) <= 0 THEN 0 ELSE COALESCE(sum(account_move_line.balance), 0) END END AS debit,
             CASE WHEN %s THEN COALESCE(SUM(account_move_line.credit), 0) ELSE CASE WHEN COALESCE(sum(account_move_line.balance), 0) >= 0 THEN 0 ELSE COALESCE(sum(account_move_line.balance), 0) END END AS credit,
-            COALESCE(SUM(account_move_line.balance), 0) AS balance
+            COALESCE(SUM(account_move_line.balance), 0) AS balance,
+            COALESCE(SUM(account_move_line.balance), 0) AS cumul_balance
         FROM
             account_move_line
             LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
@@ -360,6 +361,7 @@ class AccountStandardLedger(models.TransientModel):
             self.date_from,
 
             # init_account_table
+            # SELECT
             self.report_id.id,
             self.env.uid,
             account_type,
@@ -368,6 +370,7 @@ class AccountStandardLedger(models.TransientModel):
             self.date_from,
             self.init_balance_history,
             self.init_balance_history,
+            # WHERE
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
             company.id,
             self.date_from,
@@ -455,9 +458,12 @@ class AccountStandardLedger(models.TransientModel):
             # matching_in_futur date_to
             self.company_id.id,
             self.date_to,
+
             # init_unreconcillied_table
+            # SELECT
             self.report_id.id,
             self.env.uid,
+            # WHERE
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
             self.company_id.id,
             self.date_from,
@@ -601,7 +607,7 @@ class AccountStandardLedger(models.TransientModel):
     def _sql_account_total(self):
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance)
+            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance, cumul_balance)
         SELECT
             %s AS report_id,
             %s AS create_uid,
@@ -611,7 +617,8 @@ class AccountStandardLedger(models.TransientModel):
             %s AS date,
             COALESCE(SUM(debit), 0) AS debit,
             COALESCE(SUM(credit), 0) AS credit,
-            COALESCE(SUM(balance), 0) AS balance
+            COALESCE(SUM(balance), 0) AS balance,
+            COALESCE(SUM(balance), 0) AS cumul_balance
         FROM
             account_report_standard_ledger_line
         WHERE
@@ -630,10 +637,34 @@ class AccountStandardLedger(models.TransientModel):
         ]
         self.env.cr.execute(query, tuple(params))
 
+        query = """WITH table_progress AS (
+            SELECT
+            	aml.id AS id,
+            	SUM(aml.balance) OVER (PARTITION BY aml.account_id ORDER BY aml.account_id, aml.id) AS progress
+            FROM
+            	account_report_standard_ledger_line aml
+            WHERE
+            	report_id = %s
+                AND type != '4_total')
+
+            UPDATE account_report_standard_ledger_line ra
+            SET
+            	cumul_balance = table_progress.progress
+            FROM
+            	table_progress
+            WHERE
+            	ra.id = table_progress.id
+            """
+        params = [
+            # WHERE
+            self.report_id.id,
+        ]
+        self.env.cr.execute(query, tuple(params))
+
     def _sql_partner_total(self):
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, partner_id, type, date, debit, credit, balance)
+            (report_id, create_uid, create_date, partner_id, type, date, debit, credit, balance, cumul_balance)
         SELECT
             %s AS report_id,
             %s AS create_uid,
@@ -643,7 +674,8 @@ class AccountStandardLedger(models.TransientModel):
             %s AS date,
             COALESCE(SUM(debit), 0) AS debit,
             COALESCE(SUM(credit), 0) AS credit,
-            COALESCE(SUM(balance), 0) AS balance
+            COALESCE(SUM(balance), 0) AS balance,
+            COALESCE(SUM(balance), 0) AS cumul_balance
         FROM
             account_report_standard_ledger_line
         WHERE
@@ -656,6 +688,30 @@ class AccountStandardLedger(models.TransientModel):
             self.report_id.id,
             self.env.uid,
             self.date_from,
+            self.report_id.id,
+        ]
+        self.env.cr.execute(query, tuple(params))
+
+        query = """WITH table_progress AS (
+            SELECT
+            	aml.id AS id,
+            	SUM(aml.balance) OVER (PARTITION BY aml.partner_id ORDER BY aml.partner_id, aml.id) AS progress
+            FROM
+            	account_report_standard_ledger_line aml
+            WHERE
+            	report_id = %s
+                AND type != '4_total')
+
+            UPDATE account_report_standard_ledger_line ra
+            SET
+            	cumul_balance = table_progress.progress
+            FROM
+            	table_progress
+            WHERE
+            	ra.id = table_progress.id
+            """
+        params = [
+            # WHERE
             self.report_id.id,
         ]
         self.env.cr.execute(query, tuple(params))

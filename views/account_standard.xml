@@ -14,7 +14,7 @@
                 <field name="debit" sum="Total"/>
                 <field name="credit" sum="Total"/>
                 <field name="balance" sum="Total"/>
-                <field name="cumul_balance_account"/>
+                <field name="cumul_balance"/>
                 <field name="full_reconcile_id"/>
                 <field name="reconciled"/>
             </tree>

@@ -45,11 +45,10 @@ class AccountStandardLedgerPeriode(models.TransientModel):
     date_to = fields.Datetime('Date to')
 
 
-class AccountStandardLedgerLines(models.TransientModel):
+class AccountStandardLedgerReport(models.TransientModel):
     _name = 'account.report.standard.ledger.report'
 
     name = fields.Char()
-
 
 class AccountStandardLedgerLines(models.TransientModel):
     _name = 'account.report.standard.ledger.line'
@@ -188,6 +187,7 @@ class AccountStandardLedger(models.TransientModel):
         self.ensure_one()
         self.report_id = self.env['account.report.standard.ledger.report'].create({})
         self.compute_data()
+
         return {
             'name': _("Ledger Lines"),
             'view_type': 'form',
@@ -202,15 +202,7 @@ class AccountStandardLedger(models.TransientModel):
         self.ensure_one()
         self.report_id = self.env['account.report.standard.ledger.report'].create({})
         self.compute_data()
-        return {
-            'name': _("Ledger Lines"),
-            'view_type': 'form',
-            'view_mode': 'tree,form',
-            'res_model': 'account.report.standard.ledger.line',
-            'type': 'ir.actions.act_window',
-            'domain': "[('report_id','=',%s)]" % (self.report_id.id),
-            'target': 'current',
-        }
+        return
 
         return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data={'active_id': self.id})
 
@@ -238,24 +230,29 @@ class AccountStandardLedger(models.TransientModel):
         # self.lines_ids.unlink()
         if self.type_ledger != 'open':
             self._sql_unaffected_earnings()
-        print(t - time.time())
+            print(t - time.time(), 'unaffected')
         self._sql_init_balance()
-        print(t - time.time())
+        print(t - time.time(), 'init_balance')
         self._sql_init_unreconcillied_table()
-        print(t - time.time())
+        print(t - time.time(), 'unreconciled')
         if self.type_ledger != 'open':
             self._sql_lines()
-        print(t - time.time())
+            print(t - time.time(), 'sql_line')
         if self.compact_account:
             self._sql_lines_compacted()
-        print(t - time.time())
+            print(t - time.time(), 'compected')
         if self.type_ledger in ('general',):
             self._sql_account_total()
+            print(t - time.time(),'total')
+            self._sql_account_cumul()
+            print(t - time.time(), 'cumul')
         elif self.type_ledger in ('partner', 'aged'):
             self._sql_partner_total()
-        print(t - time.time())
+            print(t - time.time(),'total')
+            self._sql_partner_cumul()
+            print(t - time.time(), 'cumul')
         self.refresh()
-        print(t - time.time())
+        print(t - time.time(), 'refresh')
 
     def _sql_unaffected_earnings(self):
         company = self.company_id
@@ -637,6 +634,7 @@ class AccountStandardLedger(models.TransientModel):
         ]
         self.env.cr.execute(query, tuple(params))
 
+    def _sql_account_cumul(self):
         query = """WITH table_progress AS (
             SELECT
             	aml.id AS id,
@@ -653,9 +651,12 @@ class AccountStandardLedger(models.TransientModel):
             FROM
             	table_progress
             WHERE
-            	ra.id = table_progress.id
+                ra.report_id = %s
+            	AND ra.id = table_progress.id
             """
         params = [
+            # WHERE
+            self.report_id.id,
             # WHERE
             self.report_id.id,
         ]
@@ -692,6 +693,7 @@ class AccountStandardLedger(models.TransientModel):
         ]
         self.env.cr.execute(query, tuple(params))
 
+    def _sql_partner_cumul(self):
         query = """WITH table_progress AS (
             SELECT
             	aml.id AS id,
@@ -708,9 +710,12 @@ class AccountStandardLedger(models.TransientModel):
             FROM
             	table_progress
             WHERE
-            	ra.id = table_progress.id
+            ra.report_id = %s
+            AND ra.id = table_progress.id
             """
         params = [
+            # WHERE
+            self.report_id.id,
             # WHERE
             self.report_id.id,
         ]

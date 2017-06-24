@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record model="ir.ui.view" id="view_account_report_standard_ledger_line_form">
+        <field name="name">account.report.standard.ledger.line</field>
+        <field name="model">account.report.standard.ledger.line</field>
+        <field name="type">tree</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="type"/>
+                <field name="date"/>
+                <field name="account_id"/>
+                <field name="move_id"/>
+                <field name="partner_id"/>
+                <field name="debit" sum="Total"/>
+                <field name="credit" sum="Total"/>
+                <field name="balance"/>
+                <field name="full_reconcile_id"/>
+            </tree>
+        </field>
+    </record>
+</odoo>

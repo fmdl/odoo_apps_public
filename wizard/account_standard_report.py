@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import calendar
+import time
 
 from datetime import datetime, timedelta
 from odoo import api, models, fields, _
@@ -43,22 +44,29 @@ class AccountStandardLedgerPeriode(models.TransientModel):
     date_from = fields.Datetime('Date from')
     date_to = fields.Datetime('Date to')
 
+class AccountStandardLedgerLines(models.TransientModel):
+    _name = 'account.report.standard.ledger.report'
+
+    name = fields.Char()
+
 
 class AccountStandardLedgerLines(models.TransientModel):
     _name = 'account.report.standard.ledger.line'
+    #_order = 'type,date,account_id,move_id' #,move_id,account_id
 
-    report_id = fields.Many2one('account.report.standard.ledger')
+    report_id = fields.Many2one('account.report.standard.ledger.report')
     account_id = fields.Many2one('account.account')
-    type = fields.Selection([('0_init', 'Initial'), ('1_init_line', 'Init Line'), ('2_line', 'Line'),('3_total', 'Total')], string='Type')
+    type = fields.Selection([('0_init', 'Initial'), ('1_init_line', 'Init Line'), ('2_line', 'Line'), ('3_compact', 'Compacted'), ('4_total', 'Total')], string='Type')
     journal_id = fields.Many2one('account.journal')
     partner_id = fields.Many2one('res.partner')
+    group_by_key = fields.Integer()
     move_id = fields.Many2one('account.move')
     date = fields.Date()
     date_maturity = fields.Date()
     debit = fields.Float()
     credit = fields.Float()
     balance = fields.Float()
-    progress = fields.Float()
+    cumul_balance_account = fields.Float()
     full_reconcile_id = fields.Many2one('account.full.reconcile')
 
 
@@ -130,7 +138,8 @@ class AccountStandardLedger(models.TransientModel):
     report_name = fields.Char('Report Name')
     compact_account = fields.Boolean('Compacte account.', default=False)
     reset_exp_acc_start_date = fields.Boolean('Reset expenses/revenue account at start date', default=True)
-    lines_ids = fields.One2many('account.report.standard.ledger.line', 'report_id', string='Lines')
+    # lines_ids = fields.One2many('account.report.standard.ledger.line', 'report_id', string='Lines')
+    report_id = fields.Many2one('account.report.standard.ledger.report')
 
     @api.onchange('account_in_ex_clude')
     def on_change_summary(self):
@@ -172,6 +181,7 @@ class AccountStandardLedger(models.TransientModel):
 
     def print_pdf_report(self):
         self.ensure_one()
+        self.report_id = self.env['account.report.standard.ledger.report'].create({})
         self.compute_data()
         return {
             'name': _("Ledger Lines"),
@@ -179,7 +189,7 @@ class AccountStandardLedger(models.TransientModel):
             'view_mode': 'tree,form',
             'res_model': 'account.report.standard.ledger.line',
             'type': 'ir.actions.act_window',
-            'domain': "[('report_id','=',%s)]" % (self.id),
+            'domain': "[('report_id','=',%s)]" % (self.report_id.id),
             'target': 'current',
         }
 
@@ -200,18 +210,28 @@ class AccountStandardLedger(models.TransientModel):
             self.partner_ids = False
 
     def compute_data(self):
-        self.lines_ids.unlink()
-
+        t = time.time()
+        # self.lines_ids.unlink()
         if self.type_ledger != 'open':
             self._sql_unaffected_earnings()
-
+        print(t - time.time())
         self._sql_init_balance()
-
+        print(t - time.time())
         self._sql_init_unreconcillied_table()
-
+        print(t - time.time())
         if self.type_ledger != 'open':
             self._sql_lines()
-
+        print(t - time.time())
+        if self.compact_account:
+            self._sql_lines_compacted()
+        print(t - time.time())
+        if self.type_ledger in ('general',):
+            self._sql_account_total()
+        elif self.type_ledger in ('partner', 'aged'):
+            self._sql_partner_total()
+        print(t - time.time())
+        self.refresh()
+        print(t - time.time())
 
     def _sql_unaffected_earnings(self):
         unaffected_earnings_account = self.env['account.account'].search([('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
@@ -239,11 +259,11 @@ class AccountStandardLedger(models.TransientModel):
             m.state IN %s
             AND account_move_line.company_id = %s
             AND account_move_line.date < %s
-            AND acc_type.include_initial_balance = 'f'
+            AND acc_type.include_initial_balance = FALSE
         """
 
         params = [
-            self.id,
+            self.report_id.id,
             self.env.uid,
             unaffected_earnings_account.id,
             self.date_from,
@@ -258,7 +278,7 @@ class AccountStandardLedger(models.TransientModel):
         # initial balance partner
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, partner_id, type, date, debit, credit, balance)
+            (report_id, create_uid, create_date, account_id, partner_id, group_by_key, type, date, debit, credit, balance)
 
         WITH matching_in_futur_before_init (id) AS
         (
@@ -275,8 +295,12 @@ class AccountStandardLedger(models.TransientModel):
             %s AS report_id,
             %s AS create_uid,
             NOW() AS create_date,
-            MIN(account_move_line.account_id) AS account_id,
-            MIN(account_move_line.partner_id) AS partner_id,
+            CASE WHEN %s THEN MIN(account_move_line.account_id) ELSE NULL END,
+            CASE WHEN %s THEN MIN(account_move_line.partner_id) ELSE NULL END,
+            (CASE
+                WHEN %s THEN account_move_line.account_id
+                ELSE account_move_line.partner_id
+            END) AS group_by_key,
             '0_init' AS type,
             %s AS date,
             COALESCE(SUM(account_move_line.debit), 0) AS debit,
@@ -292,10 +316,12 @@ class AccountStandardLedger(models.TransientModel):
             m.state IN %s
             AND account_move_line.company_id = %s
             AND account_move_line.date < %s
-            AND (acc_type.type NOT IN ('payable', 'receivable') OR (account_move_line.full_reconcile_id IS NOT NULL AND NOT account_move_line.full_reconcile_id = mif.id))
+            AND acc_type.include_initial_balance = TRUE
+            AND ((%s AND acc.compacted = TRUE) OR acc_type.type NOT IN ('payable', 'receivable') OR (account_move_line.full_reconcile_id IS NOT NULL AND NOT account_move_line.full_reconcile_id = mif.id))
         GROUP BY
-            account_move_line.partner_id, account_move_line.account_id
+            group_by_key
         """
+        account_type = True if self.type_ledger in ('general','open') else False
 
         params = [
             # matching_in_futur
@@ -303,12 +329,17 @@ class AccountStandardLedger(models.TransientModel):
             self.date_from,
 
             # init_account_table
-            self.id,
+            self.report_id.id,
             self.env.uid,
+            account_type,
+            not(account_type),
+            account_type,
             self.date_from,
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
             company.id,
-            self.date_from,]
+            self.date_from,
+            self.compact_account
+            ]
 
         self.env.cr.execute(query, tuple(params))
 
@@ -316,7 +347,7 @@ class AccountStandardLedger(models.TransientModel):
         company = self.env.user.company_id
         # init_unreconcillied_table
         query = """INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id,date, date_maturity, debit, credit, balance, progress, full_reconcile_id)
+            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id,date, date_maturity, debit, credit, balance, full_reconcile_id)
 
         WITH matching_in_futur_before_init (id) AS
         (
@@ -344,7 +375,6 @@ class AccountStandardLedger(models.TransientModel):
             account_move_line.debit,
             account_move_line.credit,
             account_move_line.balance,
-            NULL as progress,
             account_move_line.full_reconcile_id
         FROM
             account_move_line
@@ -356,6 +386,8 @@ class AccountStandardLedger(models.TransientModel):
             m.state IN %s
             AND account_move_line.company_id = %s
             AND account_move_line.date < %s
+            AND acc_type.include_initial_balance = TRUE
+            AND NOT (%s AND acc.compacted = TRUE)
         	AND acc_type.type IN ('payable', 'receivable') AND (account_move_line.full_reconcile_id IS NULL OR account_move_line.full_reconcile_id = mif.id)
         ORDER BY
             account_move_line.date
@@ -366,11 +398,12 @@ class AccountStandardLedger(models.TransientModel):
             company.id,
             self.date_from,
             # init_unreconcillied_table
-            self.id,
+            self.report_id.id,
             self.env.uid,
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
             company.id,
             self.date_from,
+            self.compact_account,
             ]
 
         self.env.cr.execute(query, tuple(params))
@@ -380,7 +413,8 @@ class AccountStandardLedger(models.TransientModel):
         # lines_table
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id,date, date_maturity, debit, credit, balance, progress, full_reconcile_id)
+            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id,date, date_maturity, debit, credit, balance, full_reconcile_id)
+
         SELECT
             %s AS report_id,
             %s AS create_uid,
@@ -395,7 +429,6 @@ class AccountStandardLedger(models.TransientModel):
             account_move_line.debit,
             account_move_line.credit,
             account_move_line.balance,
-            NULL as progress,
             account_move_line.full_reconcile_id
         FROM
             account_move_line
@@ -408,21 +441,156 @@ class AccountStandardLedger(models.TransientModel):
             AND account_move_line.company_id = %s
             AND account_move_line.date >= %s
             AND account_move_line.date <= %s
+            AND NOT (%s AND acc.compacted = TRUE)
         ORDER BY
             account_move_line.date
         """
 
         params = [
             # lines_table
-            self.id,
+            self.report_id.id,
             self.env.uid,
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
             company.id,
             self.date_from,
             self.date_to,
+            self.compact_account,
         ]
 
         self.env.cr.execute(query, tuple(params))
+
+    def _sql_lines_compacted(self):
+        company = self.env.user.company_id
+        # lines_table
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, account_id, type, debit, credit, balance)
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            MIN(account_move_line.account_id) AS account_id,
+            '3_compact' AS type,
+            COALESCE(SUM(account_move_line.debit), 0) AS debit,
+            COALESCE(SUM(account_move_line.credit), 0) AS credit,
+            COALESCE(SUM(account_move_line.balance), 0) AS balance
+        FROM
+            account_move_line
+            LEFT JOIN account_journal j ON (account_move_line.journal_id = j.id)
+            LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+            LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
+            LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
+        WHERE
+            m.state IN %s
+            AND account_move_line.company_id = %s
+            AND account_move_line.date >= %s
+            AND account_move_line.date <= %s
+            AND (%s AND acc.compacted = TRUE)
+        GROUP BY
+            account_move_line.account_id
+        """
+
+        params = [
+            # lines_table
+            self.report_id.id,
+            self.env.uid,
+            ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            company.id,
+            self.date_from,
+            self.date_to,
+            self.compact_account,
+        ]
+
+        self.env.cr.execute(query, tuple(params))
+
+    def _sql_account_total(self):
+        company = self.env.user.company_id
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, account_id, type, debit, credit, balance)
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            MIN(account_id),
+            '4_total' AS type,
+            COALESCE(SUM(debit), 0) AS debit,
+            COALESCE(SUM(credit), 0) AS credit,
+            COALESCE(SUM(balance), 0) AS balance
+        FROM
+            account_report_standard_ledger_line
+        WHERE
+            report_id = %s
+            AND account_id IS NOT NULL
+        GROUP BY
+            account_id
+        """
+        params = [
+            self.report_id.id,
+            self.env.uid,
+            self.report_id.id,
+            ]
+        self.env.cr.execute(query, tuple(params))
+
+    def _sql_partner_total(self):
+        company = self.env.user.company_id
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, partner_id, type, debit, credit, balance)
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            MIN(partner_id),
+            '4_total' AS type,
+            COALESCE(SUM(debit), 0) AS debit,
+            COALESCE(SUM(credit), 0) AS credit,
+            COALESCE(SUM(balance), 0) AS balance
+        FROM
+            account_report_standard_ledger_line
+        WHERE
+            report_id = %s
+            AND partner_id IS NOT NULL
+        GROUP BY
+            partner_id
+        """
+        params = [
+            self.report_id.id,
+            self.env.uid,
+            self.report_id.id,
+            ]
+        self.env.cr.execute(query, tuple(params))
+
+    def _sql_partner_total(self):
+        company = self.env.user.company_id
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, partner_id, type, debit, credit, balance)
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            MIN(partner_id),
+            '4_total' AS type,
+            COALESCE(SUM(debit), 0) AS debit,
+            COALESCE(SUM(credit), 0) AS credit,
+            COALESCE(SUM(balance), 0) AS balance
+        FROM
+            account_report_standard_ledger_line
+        WHERE
+            report_id = %s
+            AND partner_id IS NOT NULL
+        GROUP BY
+            partner_id
+        """
+        params = [
+            self.report_id.id,
+            self.env.uid,
+            self.report_id.id,
+            ]
+        self.env.cr.execute(query, tuple(params))
+
+
 
     def _search_account(self):
         type_ledger = self.type_ledger

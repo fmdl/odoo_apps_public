@@ -8,9 +8,10 @@
             <tree>
                 <field name="type"/>
                 <field name="date"/>
+                <field name="journal_id"/>
                 <field name="account_id"/>
                 <field name="move_id"/>
-                <field name="move_line_id"/>
+                <!-- <field name="move_line_id"/> -->
                 <field name="partner_id"/>
                 <field name="debit" sum="Total"/>
                 <field name="credit" sum="Total"/>

@@ -74,6 +74,14 @@ class AccountStandardLedgerLines(models.TransientModel):
     reconciled = fields.Boolean()
     report_object_id = fields.Many2one('account.report.standard.ledger.report.object')
 
+    current = fields.Float()
+    age_30_days = fields.Float()
+    age_60_days = fields.Float()
+    age_90_days = fields.Float()
+    age_120_days = fields.Float()
+    older = fields.Float()
+
+    #    current,  age_30_days, age_60_days, age_90_days,  age_120_days, older,
 
 class AccountStandardLedgerReportObject(models.TransientModel):
     _name = 'account.report.standard.ledger.report.object'
@@ -447,7 +455,7 @@ class AccountStandardLedger(models.TransientModel):
         # lines_table
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id, move_line_id, date, date_maturity, debit, credit, balance, full_reconcile_id, reconciled, report_object_id, cumul_balance)
+            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id, move_line_id, date, date_maturity, debit, credit, balance, full_reconcile_id, reconciled, report_object_id, cumul_balance, current, age_30_days, age_60_days, age_90_days, age_120_days, older)
 
         WITH matching_in_futur_before_init (id) AS
         (
@@ -485,7 +493,18 @@ class AccountStandardLedger(models.TransientModel):
             AND type = '0_init'
         GROUP BY
             report_object_id
-        )
+        ),
+
+        date_range AS
+            (
+                SELECT
+                    %s AS date_current,
+                    DATE %s - INTEGER '30' AS date_less_30_days,
+                    DATE %s - INTEGER '60' AS date_less_60_days,
+                    DATE %s - INTEGER '90' AS date_less_90_days,
+                    DATE %s - INTEGER '120' AS date_less_120_days,
+                    DATE %s - INTEGER '150' AS date_older
+            )
 
         SELECT
             %s AS report_id,
@@ -509,8 +528,15 @@ class AccountStandardLedger(models.TransientModel):
                 WHEN %s = 'account' THEN COALESCE(init.balance, 0) + (SUM(aml.balance) OVER (PARTITION BY aml.account_id ORDER BY aml.account_id, aml.date, aml.id))
                 WHEN %s = 'partner' THEN COALESCE(init.balance, 0) + (SUM(aml.balance) OVER (PARTITION BY aml.partner_id ORDER BY aml.partner_id, aml.date, aml.id))
                 ELSE SUM(aml.balance) OVER (PARTITION BY aml.journal_id ORDER BY aml.journal_id, aml.date, aml.id)
-            END AS cumul_balance
+            END AS cumul_balance,
+            CASE WHEN aml.date_maturity > date_range.date_less_30_days THEN aml.balance END AS current,
+            CASE WHEN aml.date_maturity > date_range.date_less_60_days AND aml.date_maturity <= date_range.date_less_30_days THEN aml.balance END AS age_30_days,
+            CASE WHEN aml.date_maturity > date_range.date_less_90_days AND aml.date_maturity <= date_range.date_less_60_days THEN aml.balance END AS age_60_days,
+            CASE WHEN aml.date_maturity > date_range.date_less_120_days AND aml.date_maturity <= date_range.date_less_90_days THEN aml.balance END AS age_90_days,
+            CASE WHEN aml.date_maturity > date_range.date_older AND aml.date_maturity <= date_range.date_less_120_days THEN aml.balance END AS age_120_days,
+            CASE WHEN aml.date_maturity <= date_range.date_older THEN aml.balance END AS older
         FROM
+            date_range,
             account_report_standard_ledger_report_object ro
             INNER JOIN account_move_line aml ON (
                 CASE
@@ -555,6 +581,9 @@ class AccountStandardLedger(models.TransientModel):
 
             # initial_balance
             self.report_id.id,
+
+            # date_range
+            self.date_to, self.date_to, self.date_to, self.date_to, self.date_to, self.date_to,
 
             # lines_table
             # SELECT
@@ -663,7 +692,7 @@ class AccountStandardLedger(models.TransientModel):
     def _sql_total(self):
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, partner_id, journal_id, type, date, debit, credit, balance, cumul_balance, report_object_id)
+            (report_id, create_uid, create_date, account_id, partner_id, journal_id, type, date, debit, credit, balance, cumul_balance, report_object_id, current, age_30_days, age_60_days, age_90_days, age_120_days, older)
         SELECT
             %s AS report_id,
             %s AS create_uid,
@@ -677,7 +706,13 @@ class AccountStandardLedger(models.TransientModel):
             COALESCE(SUM(credit), 0) AS credit,
             COALESCE(SUM(balance), 0) AS balance,
             COALESCE(SUM(balance), 0) AS cumul_balance,
-            MIN(report_object_id) AS report_object_id
+            MIN(report_object_id) AS report_object_id,
+            COALESCE(SUM(current)) AS current,
+            COALESCE(SUM(age_30_days)) AS age_30_days,
+            COALESCE(SUM(age_60_days)) AS age_60_days,
+            COALESCE(SUM(age_90_days)) AS age_90_days,
+            COALESCE(SUM(age_120_days)) AS age_120_days,
+            COALESCE(SUM(older)) AS older
         FROM
             account_report_standard_ledger_line
         WHERE

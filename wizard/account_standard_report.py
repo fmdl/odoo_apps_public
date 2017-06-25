@@ -91,6 +91,42 @@ class AccountStandardLedgerLines(models.TransientModel):
 
     company_currency_id = fields.Many2one('res.currency')
 
+    @api.model
+    def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):
+        res = super(AccountStandardLedgerLines, self).read_group(domain, fields, groupby, offset, limit=limit, orderby=orderby, lazy=lazy)
+
+        if 'cumul_balance' in fields and 'read_report_id' in self.env.context:
+            report = self.env.context.get('read_report_id')
+            totals = self.search([('type','=','4_total'), ('report_id', '=', report), ],)
+
+            if 'account_id' in groupby and len(groupby) == 1:
+                dict_vals = {}
+                for tot in totals:
+                    dict_vals[tot.account_id.id] = tot.balance
+                for line in res:
+                    line['cumul_balance'] = dict_vals.get(line.get('account_id')[0],0)
+                return res
+            if 'journal_id' in groupby and len(groupby) == 1:
+                dict_vals = {}
+                for tot in totals:
+                    dict_vals[tot.journal_id.id] = tot.balance
+                for line in res:
+                    line['cumul_balance'] = dict_vals.get(line.get('journal_id')[0],0)
+                return res
+            if 'partner_id' in groupby and len(groupby) == 1:
+                dict_vals = {}
+                for tot in totals:
+                    dict_vals[tot.partner_id.id] = tot.balance
+                for line in res:
+                    line['cumul_balance'] = dict_vals.get(line.get('partner_id')[0],0)
+                return res
+
+            for line in res:
+                if 'account_id' in line:
+                    line['cumul_balance'] = False
+        return res
+
+
 
 class AccountStandardLedgerReportObject(models.TransientModel):
     _name = 'account.report.standard.ledger.report.object'
@@ -234,7 +270,7 @@ class AccountStandardLedger(models.TransientModel):
             'res_model': 'account.report.standard.ledger.line',
             'type': 'ir.actions.act_window',
             'domain': "[('report_id','=',%s)]" % (self.report_id.id),
-            'context': {'search_default_%s' % self.type_ledger: 1},
+            'context': {'search_default_%s' % self.type_ledger: 1, 'read_report_id': self.report_id.id},
             'target': 'current',
         }
 
@@ -298,7 +334,6 @@ class AccountStandardLedger(models.TransientModel):
         line_obj = self.env['account.report.standard.ledger.line']
         self.report_id.line_total_ids = line_obj.search([('report_id', '=', self.report_id.id), ('type', '=', '4_total')])
         print(t - time.time(), 'refresh')
-
 
     def _sql_report_object(self):
         query = """INSERT INTO  account_report_standard_ledger_report_object

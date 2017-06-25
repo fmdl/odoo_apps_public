@@ -41,10 +41,60 @@
                 <field name="age_120_days" sum="Total" attrs="{'invisible':[('age_120_days','=',0)]}"/>
                 <field name="older" sum="Total" attrs="{'invisible':[('older','=',0)]}"/>
                 <field name="balance" sum="Total"/>
-                <field name="cumul_balance"/>
+                <!-- <field name="cumul_balance"/> -->
                 <field name="full_reconcile_id"/>
                 <field name="reconciled"/>
             </tree>
+        </field>
+    </record>
+
+    <record id="account_report_standard_ledger_line_form" model="ir.ui.view">
+        <field name="name">account.report.standard.ledger.line.form</field>
+        <field name="model">account.report.standard.ledger.line</field>
+        <field name="arch" type="xml">
+            <form string="Journal Item">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="type"/>
+                            <field name="move_line_id"/>
+                            <field name="partner_id"/>
+                        </group>
+                        <group>
+                            <field name="journal_id"/>
+                            <field name="date"/>
+                        </group>
+                    </group>
+                    <notebook colspan="4">
+                        <page string="Information">
+                            <group>
+                                <group string="Amount">
+                                    <field name="account_id" domain="[('company_id', '=', company_id)]"/>
+                                    <field name="debit"/>
+                                    <field name="credit"/>
+                                    <field name="balance"/>
+                                </group>
+                                <group string="Accounting Documents">
+                                    <field name="move_id" required="False"/>
+                                </group>
+                                <group string="Dates">
+                                    <field name="date_maturity"/>
+                                </group>
+                                <group string="Matching">
+                                    <field name="full_reconcile_id"/>
+                                    <field name="reconciled"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Other">
+                            <group>
+                                <field name="report_id"/>
+                                <field name="report_object_id"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
         </field>
     </record>
 

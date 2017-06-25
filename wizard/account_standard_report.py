@@ -54,7 +54,6 @@ class AccountStandardLedgerReport(models.TransientModel):
 
 class AccountStandardLedgerLines(models.TransientModel):
     _name = 'account.report.standard.ledger.line'
-    _order = 'id'  # ,move_id,account_id #type,date,move_line_id,
     _order = 'id'  # ,move_id,account_id #type,date,move_line_id_id,
     _rec_name = 'move_id'
 
@@ -65,7 +64,8 @@ class AccountStandardLedgerLines(models.TransientModel):
     partner_id = fields.Many2one('res.partner')
     group_by_key = fields.Char()
     move_id = fields.Many2one('account.move')
-    move_line_id = fields.Integer()
+    # move_line_id_id = fields.Integer()
+    move_line_id = fields.Many2one('account.move.line')
     date = fields.Date()
     date_maturity = fields.Date()
     debit = fields.Float()

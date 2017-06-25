@@ -55,6 +55,8 @@ class AccountStandardLedgerReport(models.TransientModel):
 class AccountStandardLedgerLines(models.TransientModel):
     _name = 'account.report.standard.ledger.line'
     _order = 'id'  # ,move_id,account_id #type,date,move_line_id,
+    _order = 'id'  # ,move_id,account_id #type,date,move_line_id_id,
+    _rec_name = 'move_id'
 
     report_id = fields.Many2one('account.report.standard.ledger.report')
     account_id = fields.Many2one('account.account')
@@ -210,13 +212,16 @@ class AccountStandardLedger(models.TransientModel):
         self.report_id = self.env['account.report.standard.ledger.report'].create({})
         self.compute_data()
 
+
         return {
             'name': _("Ledger Lines"),
             'view_type': 'form',
             'view_mode': 'tree,form',
+            'views': [(self.env.ref('account_standard_report.view_aged_tree').id if self.type_ledger == 'aged' else False,'tree')],
             'res_model': 'account.report.standard.ledger.line',
             'type': 'ir.actions.act_window',
             'domain': "[('report_id','=',%s)]" % (self.report_id.id),
+            'context': {'search_default_%s' % self.type_ledger:1},
             'target': 'current',
         }
 

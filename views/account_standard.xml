@@ -10,6 +10,7 @@
                 <field name="date"/>
                 <field name="account_id"/>
                 <field name="move_id"/>
+                <field name="move_line_id"/>
                 <field name="partner_id"/>
                 <field name="debit" sum="Total"/>
                 <field name="credit" sum="Total"/>

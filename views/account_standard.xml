@@ -9,9 +9,8 @@
                 <field name="type"/>
                 <field name="date"/>
                 <field name="journal_id"/>
-                <!-- <field name="account_id"/> -->
+                <field name="account_id"/>
                 <field name="move_id"/>
-                <!-- <field name="move_line_id"/> -->
                 <field name="partner_id"/>
                 <field name="debit" sum="Total" attrs="{'invisible':[('debit','=',0)]}"/>
                 <field name="credit" sum="Total" attrs="{'invisible':[('credit','=',0)]}"/>
@@ -31,7 +30,7 @@
                 <field name="type"/>
                 <field name="date"/>
                 <field name="partner_id"/>
-                <field name="account_id"/>
+                <!-- <field name="account_id"/> -->
                 <field name="move_id"/>
                 <!-- <field name="move_line_id"/> -->
                 <field name="date_maturity"/>

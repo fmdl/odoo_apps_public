@@ -31,7 +31,6 @@
                     <group col="2">
                         <group>
                             <field name="date_from"/>
-                            <field name="reset_exp_acc_start_date" attrs="{'readonly': ['|', ('date_from', '=', False), ('type_ledger', '!=', 'general')]}"/>
                         </group>
                         <group>
                             <field name="date_to"/>
@@ -48,8 +47,6 @@
                         <field name="account_methode" attrs="{'invisible':[('account_in_ex_clude', '=', [])]}"/>
                     </group>
                     <group col="4">
-                        <field name="sum_group_by_top" attrs="{'readonly': [('summary', '=', True)]}"/>
-                        <field name="sum_group_by_bottom" attrs="{'readonly': [('summary', '=', True)]}"/>
                         <field name="init_balance_history"/>
                     </group>
                 </form>

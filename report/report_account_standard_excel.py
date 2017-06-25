@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-
+import time
+from datetime import datetime, timedelta
 from odoo.addons.report_xlsx.report.report_xlsx import ReportXlsx
+from odoo.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT
 from odoo import _
 
 
 class AccountStandardExcel(ReportXlsx):
 
-    def generate_xlsx_report(self, workbook, data, report):
+    def generate_xlsx_report(self, workbook, data, wizard):
 
         num_format = _('_ * #,##0.00_) ;_ * - #,##0.00_) ;_ * "-"??_) ;_ @_ ')
         bold = workbook.add_format({'bold': True})
@@ -18,27 +20,35 @@ class AccountStandardExcel(ReportXlsx):
         c_middle = workbook.add_format({'bold': True, 'top': 1, 'num_format': _(num_format)})
         report_format = workbook.add_format({'font_size': 24})
         rounding = self.env.user.company_id.currency_id.decimal_places or 2
+        lang_code = self.env.user.lang or 'en_US'
+        date_format = self.env['res.lang']._lang_get(lang_code).date_format
+
+        report = wizard.report_id
+
+        def get_date_format(date):
+            if date:
+                date = datetime.strptime(date, DEFAULT_SERVER_DATE_FORMAT)
+                date = date.strftime(date_format)
+            return date
 
         def _header_sheet(sheet):
-            sheet.write(0, 4, data['name_report'], report_format)
+            sheet.write(0, 4, report.name, report_format)
             sheet.write(2, 0, _('Company:'), bold)
-            sheet.write(3, 0, data['res_company'],)
-            sheet.write(4, 0, _('Print on %s') % data['time'])
+            sheet.write(3, 0, wizard.company_id.name,)
+            sheet.write(4, 0, _('Print on %s') % report.print_time)
 
-            sheet.write(2, 2, _('Start Date : %s ') % data['date_from'] if data['date_from'] else '')
-            sheet.write(3, 2, _('End Date : %s ') % data['date_to'] if data['date_to'] else '')
+            sheet.write(2, 2, _('Start Date : %s ') % wizard.date_from if wizard.date_from else '')
+            sheet.write(3, 2, _('End Date : %s ') % wizard.date_to if wizard.date_to else '')
 
             sheet.write(2, 4, _('Target Moves:'), bold)
-            sheet.write(3, 4, _('All Entries') if data['target_move'] == 'all' else _('All Posted Entries'))
+            sheet.write(3, 4, _('All Entries') if wizard.target_move == 'all' else _('All Posted Entries'))
 
-            sheet.write(2, 6, _('Only UnReconciled Entries') if data['reconciled'] is False else _('With Reconciled Entries'), bold)
-            
-        data = report.pre_print_report()
+            sheet.write(2, 6, _('Only UnReconciled Entries') if wizard.reconciled is False else _('With Reconciled Entries'), bold)
 
-        if report.type_ledger == 'aged':
+        if wizard.type_ledger == 'aged':
 
-            if report.summary:
-                sheet = workbook.add_worksheet(data['name_report'])
+            if wizard.summary:
+                sheet = workbook.add_worksheet(report.name)
                 _header_sheet(sheet)
 
                 head = [
@@ -71,9 +81,8 @@ class AccountStandardExcel(ReportXlsx):
                      'col': {'total_function': 'sum', 'format': currency_format}},
                 ]
 
-                all_lines = []
-                for group_by in data['group_by_data']['ids']:
-                    all_lines.append(data['lines_group_by'][group_by])
+                all_lines = wizard.sql_get_total_line(type_l=('4_total',))
+                # print(all_lines)
                 if all_lines:
 
                     row = 6
@@ -83,13 +92,13 @@ class AccountStandardExcel(ReportXlsx):
                         i += row
                         sheet.write(i, 0, line.get('code', ''))
                         sheet.write(i, 1, line.get('name', ''))
-                        sheet.write(i, 2, round(line.get('not_due', ''), rounding), currency_format)
-                        sheet.write(i, 3, round(line.get('0-30', ''), rounding), currency_format)
-                        sheet.write(i, 4, round(line.get('30-60', ''), rounding), currency_format)
-                        sheet.write(i, 5, round(line.get('60-90', ''), rounding), currency_format)
-                        sheet.write(i, 6, round(line.get('90-120', ''), rounding), currency_format)
-                        sheet.write(i, 7, round(line.get('older', ''), rounding), currency_format)
-                        sheet.write(i, 8, round(line.get('total', ''), rounding), currency_format)
+                        sheet.write(i, 2, round(line.get('current', 0.0), rounding), currency_format)
+                        sheet.write(i, 3, round(line.get('age_30_days', 0.0), rounding), currency_format)
+                        sheet.write(i, 4, round(line.get('age_60_days', 0.0), rounding), currency_format)
+                        sheet.write(i, 5, round(line.get('age_90_days', 0.0), rounding), currency_format)
+                        sheet.write(i, 6, round(line.get('age_120_days', 0.0), rounding), currency_format)
+                        sheet.write(i, 7, round(line.get('older', 0.0), rounding), currency_format)
+                        sheet.write(i, 8, round(line.get('balance', 0.0), rounding), currency_format)
                     row = i
 
                     for j, h in enumerate(head):
@@ -108,7 +117,7 @@ class AccountStandardExcel(ReportXlsx):
                                      'style': 'Table Style Light 9',
                                      })
 
-            else: # aged not summary
+            else:  # aged not summary
                 head = [
                     {'name': _('Date'),
                      'larg': 10,
@@ -165,22 +174,28 @@ class AccountStandardExcel(ReportXlsx):
                     col.update(h['col'])
                     table.append(col)
 
+                def _get_data_float(data):
+                    if data == None:
+                        return 0.0
+                    else:
+                        return data
+
                 def _set_line(line):
-                    sheet.write(i, 0, line.get('date', ''))
-                    sheet.write(i, 1, line.get('code', ''))
+                    sheet.write(i, 0, get_date_format(line.get('date', '')))
+                    sheet.write(i, 1, line.get('j_code', ''))
                     sheet.write(i, 2, line.get('a_code', ''))
                     sheet.write(i, 3, line.get('a_name', ''))
                     sheet.write(i, 4, line.get('move_name', ''))
                     sheet.write(i, 5, line.get('displayed_name', ''))
                     sheet.write(i, 6, line.get('partner_name', ''))
-                    sheet.write(i, 7, line.get('date_maturity', ''))
-                    sheet.write(i, 8, round(line.get('not_due', ''), rounding), currency_format)
-                    sheet.write(i, 9, round(line.get('0-30', ''), rounding), currency_format)
-                    sheet.write(i, 10, round(line.get('30-60', ''), rounding), currency_format)
-                    sheet.write(i, 11, round(line.get('60-90', ''), rounding), currency_format)
-                    sheet.write(i, 12, round(line.get('90-120', ''), rounding), currency_format)
-                    sheet.write(i, 13, round(line.get('older', ''), rounding), currency_format)
-                    sheet.write(i, 14, round(line.get('total', ''), rounding), currency_format)
+                    sheet.write(i, 7, get_date_format(line.get('date_maturity', '')))
+                    sheet.write(i, 8, round(_get_data_float(line.get('current', 0.0)), rounding), currency_format)
+                    sheet.write(i, 9, round(_get_data_float(line.get('age_30_days', 0.0)), rounding), currency_format)
+                    sheet.write(i, 10, round(_get_data_float(line.get('age_60_days', 0.0)), rounding), currency_format)
+                    sheet.write(i, 11, round(_get_data_float(line.get('age_90_days', 0.0)), rounding), currency_format)
+                    sheet.write(i, 12, round(_get_data_float(line.get('age_120_days', 0.0)), rounding), currency_format)
+                    sheet.write(i, 13, round(_get_data_float(line.get('older', 0.0)), rounding), currency_format)
+                    sheet.write(i, 14, round(_get_data_float(line.get('balance', 0.0)), rounding), currency_format)
                     sheet.write(i, 15, line.get('matching_number', ''))
 
                 def _set_table(start_row, row):
@@ -192,23 +207,24 @@ class AccountStandardExcel(ReportXlsx):
                     #sheet.write(row + 1, 10, "=I%s-J%s" % (row + 2, row + 2), currency_format)
 
                 # With total workbook
-                sheet = workbook.add_worksheet(data['name_report'] + _(' Totals'))
+                sheet = workbook.add_worksheet(report.name + _(' Totals'))
                 _header_sheet(sheet)
 
                 row = 6
-                for group_by in data['group_by_data']['ids']:
-                    all_lines = []
-                    for line in data['lines_group_by'][group_by]['new_lines']:
-                        if line['type_line'] != 'total':
-                            all_lines.append(line)
+                all_lines = wizard.sql_get_total_line(type_l=('1_init_line', '2_line'))
+                for obj in report.report_object_ids:
 
-                    # Head
-                    if all_lines:
+                    lines_obj = []
+                    obj_id = obj.id
+                    for line in all_lines:
+                        if line.get('report_object_id') == obj_id:
+                            lines_obj.append(line)
+                    if lines_obj:
                         row += 1
                         save_top_row = row
-                        sheet.write(row, 0, data['lines_group_by'][group_by]['code'], left)
+                        sheet.write(row, 0, obj.partner_id.name, left)  # obj.partner_id.name
                         sheet.write(row, 1, '', top)
-                        sheet.write(row, 2, data['lines_group_by'][group_by]['name'], middle)
+                        sheet.write(row, 2, '', top)
                         sheet.write(row, 3, '', top)
                         sheet.write(row, 4, '', top)
                         sheet.write(row, 5, '', top)
@@ -225,7 +241,7 @@ class AccountStandardExcel(ReportXlsx):
 
                         row += 2
                         start_row = row
-                        for i, line in enumerate(all_lines):
+                        for i, line in enumerate(lines_obj):
                             i += row
                             _set_line(line)
 
@@ -238,14 +254,13 @@ class AccountStandardExcel(ReportXlsx):
                         row += 2
 
                 # Pivot
-                sheet = workbook.add_worksheet(data['name_report'])
+                sheet = workbook.add_worksheet(report.name)
                 _header_sheet(sheet)
 
-                all_lines = []
-                for group_by in data['group_by_data']['ids']:
-                    for line in data['lines_group_by'][group_by]['new_lines']:
-                        if line['type_line'] != 'total':
-                            all_lines.append(line)
+                # for group_by in data['group_by_data']['ids']:
+                #     for line in data['lines_group_by'][group_by]['new_lines']:
+                #         if line['type_line'] != 'total':
+                #             all_lines.append(line)
                 # Head
                 if all_lines:
                     row = 6
@@ -261,15 +276,15 @@ class AccountStandardExcel(ReportXlsx):
 
                     _set_table(start_row, row)
 
-        else: #standard report
+        else:  # standard report
 
-            if report.summary:
-                sheet = workbook.add_worksheet(data['name_report'])
+            if wizard.summary:
+                sheet = workbook.add_worksheet(report.name)
                 _header_sheet(sheet)
 
-                all_lines = []
-                for group_by in data['group_by_data']['ids']:
-                    all_lines.append(data['lines_group_by'][group_by])
+                all_lines = wizard.sql_get_total_line(type_l=('4_total',))
+                # for group_by in data['group_by_data']['ids']:
+                #     all_lines.append(data['lines_group_by'][group_by])
                 if all_lines:
                     # Head
                     head = [
@@ -299,7 +314,7 @@ class AccountStandardExcel(ReportXlsx):
                         sheet.write(i, 1, line.get('name', ''))
                         sheet.write(i, 2, line.get('debit', ''), currency_format)
                         sheet.write(i, 3, line.get('credit', ''), currency_format)
-                        sheet.write(i, 4, line.get('debit - credit', ''), currency_format)
+                        sheet.write(i, 4, line.get('balance', ''), currency_format)
                     row = i
 
                     for j, h in enumerate(head):
@@ -365,17 +380,17 @@ class AccountStandardExcel(ReportXlsx):
                     table.append(col)
 
                 def _set_line(line):
-                    sheet.write(i, 0, line.get('date', ''))
-                    sheet.write(i, 1, line.get('code', ''))
+                    sheet.write(i, 0, get_date_format(line.get('date', '')))
+                    sheet.write(i, 1, line.get('j_code', ''))
                     sheet.write(i, 2, line.get('a_code', ''))
                     sheet.write(i, 3, line.get('a_name', ''))
                     sheet.write(i, 4, line.get('move_name', ''))
                     sheet.write(i, 5, line.get('displayed_name', ''))
                     sheet.write(i, 6, line.get('partner_name', ''))
-                    sheet.write(i, 7, line.get('date_maturity', ''))
+                    sheet.write(i, 7, get_date_format(line.get('date_maturity', '')))
                     sheet.write(i, 8, round(line.get('debit', ''), rounding), currency_format)
                     sheet.write(i, 9, round(line.get('credit', ''), rounding), currency_format)
-                    sheet.write(i, 10, round(line.get('progress', ''), rounding), currency_format)
+                    sheet.write(i, 10, round(line.get('cumul_balance', ''), rounding), currency_format)
                     sheet.write(i, 11, line.get('matching_number', ''))
 
                 def _set_table(start_row, row):
@@ -387,36 +402,50 @@ class AccountStandardExcel(ReportXlsx):
                     #sheet.write(row + 1, 10, "=I%s-J%s" % (row + 2, row + 2), currency_format)
 
                 # With total workbook
-                sheet = workbook.add_worksheet(data['name_report'] + _(' Totals'))
+                sheet = workbook.add_worksheet(report.name + _(' Totals'))
                 _header_sheet(sheet)
 
                 row = 6
-                for group_by in data['group_by_data']['ids']:
-                    all_lines = []
-                    for line in data['lines_group_by'][group_by]['new_lines']:
-                        if line['type_line'] != 'total':
-                            all_lines.append(line)
+                # for group_by in data['group_by_data']['ids']:
+                #     all_lines = []
+                #     for line in data['lines_group_by'][group_by]['new_lines']:
+                #         if line['type_line'] != 'total':
+                #             all_lines.append(line)
 
-                    # Head
-                    if all_lines:
+                all_lines = wizard.sql_get_total_line(type_l=('1_init_line', '2_line'))
+                for obj in report.report_object_ids:
+                    lines_obj = []
+                    obj_id = obj.id
+                    for line in all_lines:
+                        if line.get('report_object_id') == obj_id:
+                            lines_obj.append(line)
+                    if lines_obj:
                         row += 1
                         save_top_row = row
-                        sheet.write(row, 0, data['lines_group_by'][group_by]['code'], left)
+                        name_view = ''
+                        if wizard.type == 'account':
+                            name_view = obj.account_id.display_name
+                        if wizard.type == 'partner':
+                            name_view = obj.partner_id.display_name
+                        if wizard.type == 'journal':
+                            name_view = obj.journal_id.display_name
+
+                        sheet.write(row, 0, name_view, left)
                         sheet.write(row, 1, '', top)
-                        sheet.write(row, 2, data['lines_group_by'][group_by]['name'], middle)
+                        sheet.write(row, 2, '', top)
                         sheet.write(row, 3, '', top)
                         sheet.write(row, 4, '', top)
                         sheet.write(row, 5, '', top)
                         sheet.write(row, 6, '', top)
                         sheet.write(row, 7, '', top)
-                        sheet.write(row, 8, data['lines_group_by'][group_by]['debit'], c_middle)
-                        sheet.write(row, 9, data['lines_group_by'][group_by]['credit'], c_middle)
-                        sheet.write(row, 10, data['lines_group_by'][group_by]['debit - credit'], c_middle)
+                        sheet.write(row, 8, '', top)
+                        sheet.write(row, 9, '', top)
+                        sheet.write(row, 10, '', top)
                         sheet.write(row, 11, '', right)
 
                         row += 2
                         start_row = row
-                        for i, line in enumerate(all_lines):
+                        for i, line in enumerate(lines_obj):
                             i += row
                             _set_line(line)
 
@@ -426,20 +455,12 @@ class AccountStandardExcel(ReportXlsx):
                             sheet.set_column(j, j, h['larg'])
 
                         _set_table(start_row, row)
-                        # sheet.write(save_top_row, 8, '=I%s' % (row + 2), c_middle)
-                        # sheet.write(save_top_row, 9, '=J%s' % (row + 2), c_middle)
-                        # sheet.write(save_top_row, 10, '=I%s-J%s' % (save_top_row + 1, save_top_row + 1), c_middle)
                         row += 2
 
                 # Pivot workbook
-                sheet = workbook.add_worksheet(data['name_report'])
+                sheet = workbook.add_worksheet(report.name)
                 _header_sheet(sheet)
 
-                all_lines = []
-                for group_by in data['group_by_data']['ids']:
-                    for line in data['lines_group_by'][group_by]['new_lines']:
-                        if line['type_line'] != 'total':
-                            all_lines.append(line)
                 # Head
                 if all_lines:
                     row = 6

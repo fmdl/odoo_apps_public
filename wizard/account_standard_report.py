@@ -823,7 +823,7 @@ class AccountStandardLedger(models.TransientModel):
             report_name += _(' Balance')
         return report_name
 
-    def sql_get_total_line(self, type_l, report_object=None):
+    def sql_get_line_for_report(self, type_l, report_object=None):
         query = """SELECT
                     aml.report_object_id AS report_object_id,
                     CASE

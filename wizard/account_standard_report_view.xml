@@ -45,7 +45,7 @@
                         <field name="account_in_ex_clude" widget="many2many_tags" options="{'no_create': True}"/>
                         <field name="account_methode" attrs="{'invisible':[('account_in_ex_clude', '=', [])]}"/>
                     </group>
-                    <group col="2">
+                    <group col="4">
                         <field name="init_balance_history"/>
                     </group>
                 </form>

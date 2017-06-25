@@ -49,6 +49,8 @@ class AccountStandardLedgerReport(models.TransientModel):
     _name = 'account.report.standard.ledger.report'
 
     name = fields.Char()
+    report_object_ids = fields.One2many('account.report.standard.ledger.report.object', 'report_id')
+
 
 class AccountStandardLedgerLines(models.TransientModel):
     _name = 'account.report.standard.ledger.line'
@@ -69,6 +71,16 @@ class AccountStandardLedgerLines(models.TransientModel):
     cumul_balance = fields.Float()
     full_reconcile_id = fields.Many2one('account.full.reconcile')
     reconciled = fields.Boolean()
+    report_object_id = fields.Many2one('account.report.standard.ledger.report.object')
+
+
+class AccountStandardLedgerReportObject(models.TransientModel):
+    _name = 'account.report.standard.ledger.report.object'
+
+    name = fields.Char()
+    object_id = fields.Integer()
+    report_id = fields.Many2one('account.report.standard.ledger.report')
+    line_ids = fields.One2many('account.report.standard.ledger.line', 'report_object_id')
 
 
 class AccountStandardLedger(models.TransientModel):
@@ -228,6 +240,9 @@ class AccountStandardLedger(models.TransientModel):
         self.partner_ids = self._search_partner()
         self._get_name_report()
         # self.lines_ids.unlink()
+
+        self._sql_report_object()
+        print(t - time.time(), 'object')
         if self.type_ledger != 'open':
             self._sql_unaffected_earnings()
             print(t - time.time(), 'unaffected')
@@ -243,16 +258,50 @@ class AccountStandardLedger(models.TransientModel):
             print(t - time.time(), 'compected')
         if self.type_ledger in ('general',):
             self._sql_account_total()
-            print(t - time.time(),'total')
+            print(t - time.time(), 'total')
             self._sql_account_cumul()
             print(t - time.time(), 'cumul')
         elif self.type_ledger in ('partner', 'aged'):
             self._sql_partner_total()
-            print(t - time.time(),'total')
+            print(t - time.time(), 'total')
             self._sql_partner_cumul()
             print(t - time.time(), 'cumul')
         self.refresh()
         print(t - time.time(), 'refresh')
+
+    def _sql_report_object(self):
+        query = """INSERT INTO  account_report_standard_ledger_report_object
+            (report_id, create_uid, create_date, object_id)
+            SELECT DISTINCT
+                %s AS report_id,
+                %s AS create_uid,
+                NOW() AS create_date,
+                CASE
+                    WHEN %s THEN aml.account_id
+                    ELSE aml.partner_id
+                END AS object_id
+            FROM
+                account_move_line aml
+            WHERE
+                aml.company_id = %s
+                AND aml.journal_id IN %s
+                AND aml.account_id IN %s
+                AND (%s OR aml.partner_id IN %s)
+            """
+
+        params = [
+            # SELECT
+            self.report_id.id,
+            self.env.uid,
+            True if self.type_ledger in ('general', 'open', 'journal') else False,
+            # WHERE
+            self.company_id.id,
+            tuple(self.journal_ids.ids) if self.journal_ids else (None,),
+            tuple(self.account_ids.ids) if self.account_ids else (None,),
+            True if self.type_ledger in ('general', 'open', 'journal') else False,
+            tuple(self.partner_ids.ids) if self.partner_ids else (None,),
+        ]
+        self.env.cr.execute(query, tuple(params))
 
     def _sql_unaffected_earnings(self):
         company = self.company_id
@@ -262,7 +311,7 @@ class AccountStandardLedger(models.TransientModel):
 
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance, cumul_balance)
+            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance, cumul_balance, report_object_id)
         SELECT
             %s AS report_id,
             %s AS create_uid,
@@ -270,30 +319,36 @@ class AccountStandardLedger(models.TransientModel):
             %s AS account_id,
             '0_init' AS type,
             %s AS date,
-            CASE WHEN %s THEN COALESCE(SUM(account_move_line.debit), 0) ELSE CASE WHEN COALESCE(sum(account_move_line.balance), 0) <= 0 THEN 0 ELSE COALESCE(sum(account_move_line.balance), 0) END END AS debit,
-            CASE WHEN %s THEN COALESCE(SUM(account_move_line.credit), 0) ELSE CASE WHEN COALESCE(sum(account_move_line.balance), 0) >= 0 THEN 0 ELSE COALESCE(sum(account_move_line.balance), 0) END END AS credit,
-            COALESCE(SUM(account_move_line.balance), 0) AS balance,
-            COALESCE(SUM(account_move_line.balance), 0) AS cumul_balance
+            CASE WHEN %s THEN COALESCE(SUM(aml.debit), 0) ELSE CASE WHEN COALESCE(sum(aml.balance), 0) <= 0 THEN 0 ELSE COALESCE(sum(aml.balance), 0) END END AS debit,
+            CASE WHEN %s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(sum(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(sum(aml.balance), 0) END END AS credit,
+            COALESCE(SUM(aml.balance), 0) AS balance,
+            COALESCE(SUM(aml.balance), 0) AS cumul_balance,
+            MIN(ro.id) AS report_object_id
         FROM
-            account_move_line
-            LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+            account_report_standard_ledger_report_object ro
+            INNER JOIN account_move_line aml ON (aml.account_id = ro.object_id)
+            LEFT JOIN account_account acc ON (aml.account_id = acc.id)
             LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
-            LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
+            LEFT JOIN account_move m ON (aml.move_id = m.id)
         WHERE
             m.state IN %s
-            AND account_move_line.company_id = %s
-            AND account_move_line.date < %s
+            AND ro.report_id = %s
+            AND aml.company_id = %s
+            AND aml.date < %s
             AND acc_type.include_initial_balance = FALSE
         """
 
         params = [
+            # SELECT
             self.report_id.id,
             self.env.uid,
             unaffected_earnings_account.id,
             self.date_from,
             self.init_balance_history,
             self.init_balance_history,
+            # WHERE
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            self.report_id.id,
             company.id,
             self.date_from, ]
 
@@ -304,7 +359,7 @@ class AccountStandardLedger(models.TransientModel):
         # initial balance partner
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, partner_id, group_by_key, type, date, debit, credit, balance)
+            (report_id, create_uid, create_date, account_id, partner_id, group_by_key, type, date, debit, credit, balance, report_object_id)
 
         WITH matching_in_futur_before_init (id) AS
         (
@@ -321,32 +376,35 @@ class AccountStandardLedger(models.TransientModel):
             %s AS report_id,
             %s AS create_uid,
             NOW() AS create_date,
-            CASE WHEN %s THEN MIN(account_move_line.account_id) ELSE NULL END,
-            CASE WHEN %s THEN MIN(account_move_line.partner_id) ELSE NULL END,
+            CASE WHEN %s THEN MIN(aml.account_id) ELSE NULL END,
+            CASE WHEN %s THEN MIN(aml.partner_id) ELSE NULL END,
             (CASE
-                WHEN %s THEN account_move_line.account_id
-                ELSE account_move_line.partner_id
+                WHEN %s THEN aml.account_id
+                ELSE aml.partner_id
             END) AS group_by_key,
             '0_init' AS type,
             %s AS date,
-            CASE WHEN %s THEN COALESCE(SUM(account_move_line.debit), 0) ELSE CASE WHEN COALESCE(sum(account_move_line.balance), 0) <= 0 THEN 0 ELSE COALESCE(sum(account_move_line.balance), 0) END END AS debit,
-            CASE WHEN %s THEN COALESCE(SUM(account_move_line.credit), 0) ELSE CASE WHEN COALESCE(sum(account_move_line.balance), 0) >= 0 THEN 0 ELSE COALESCE(sum(account_move_line.balance), 0) END END AS credit,
-            COALESCE(SUM(account_move_line.balance), 0) AS balance
+            CASE WHEN %s THEN COALESCE(SUM(aml.debit), 0) ELSE CASE WHEN COALESCE(sum(aml.balance), 0) <= 0 THEN 0 ELSE COALESCE(sum(aml.balance), 0) END END AS debit,
+            CASE WHEN %s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(sum(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(sum(aml.balance), 0) END END AS credit,
+            COALESCE(SUM(aml.balance), 0) AS balance,
+            MIN(ro.id) AS report_object_id
         FROM
-            account_move_line
-            LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+            account_report_standard_ledger_report_object ro
+            INNER JOIN account_move_line aml ON (CASE WHEN %s THEN aml.account_id = ro.object_id ELSE aml.partner_id = ro.object_id END)
+            LEFT JOIN account_account acc ON (aml.account_id = acc.id)
             LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
-            LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
-            LEFT JOIN matching_in_futur_before_init mif ON (account_move_line.full_reconcile_id = mif.id)
+            LEFT JOIN account_move m ON (aml.move_id = m.id)
+            LEFT JOIN matching_in_futur_before_init mif ON (aml.full_reconcile_id = mif.id)
        	WHERE
             m.state IN %s
-            AND account_move_line.company_id = %s
-            AND account_move_line.date < %s
+            AND ro.report_id = %s
+            AND aml.company_id = %s
+            AND aml.date < %s
             AND acc_type.include_initial_balance = TRUE
-            AND account_move_line.journal_id IN %s
-            AND account_move_line.account_id IN %s
-            AND (%s OR account_move_line.partner_id IN %s)
-            AND ((%s AND acc.compacted = TRUE) OR acc.type_third_parties = 'no' OR (account_move_line.full_reconcile_id IS NOT NULL AND mif.id IS NULL))
+            AND aml.journal_id IN %s
+            AND aml.account_id IN %s
+            AND (%s OR aml.partner_id IN %s)
+            AND ((%s AND acc.compacted = TRUE) OR acc.type_third_parties = 'no' OR (aml.full_reconcile_id IS NOT NULL AND mif.id IS NULL))
         GROUP BY
             group_by_key
         """
@@ -367,8 +425,11 @@ class AccountStandardLedger(models.TransientModel):
             self.date_from,
             self.init_balance_history,
             self.init_balance_history,
+            # FROM
+            True if self.type_ledger in ('general', 'open', 'journal') else False,
             # WHERE
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            self.report_id.id,
             company.id,
             self.date_from,
             tuple(self.journal_ids.ids) if self.journal_ids else (None,),
@@ -383,7 +444,7 @@ class AccountStandardLedger(models.TransientModel):
     def _sql_init_unreconcillied_table(self):
         # init_unreconcillied_table
         query = """INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id,date, date_maturity, debit, credit, balance, full_reconcile_id, reconciled)
+            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id,date, date_maturity, debit, credit, balance, full_reconcile_id, reconciled, report_object_id)
 
         WITH matching_in_futur_before_init (id) AS
         (
@@ -413,38 +474,42 @@ class AccountStandardLedger(models.TransientModel):
             %s AS report_id,
             %s AS create_uid,
             NOW() AS create_date,
-            account_move_line.account_id,
+            aml.account_id,
             '1_init_line' AS type,
-            account_move_line.journal_id,
-            account_move_line.partner_id,
-            account_move_line.move_id,
-            account_move_line.date,
-            account_move_line.date_maturity,
-            account_move_line.debit,
-            account_move_line.credit,
-            account_move_line.balance,
-            account_move_line.full_reconcile_id,
-            CASE WHEN account_move_line.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL THEN TRUE ELSE FALSE END AS reconciled
+            aml.journal_id,
+            aml.partner_id,
+            aml.move_id,
+            aml.date,
+            aml.date_maturity,
+            aml.debit,
+            aml.credit,
+            aml.balance,
+            aml.full_reconcile_id,
+            CASE WHEN aml.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL THEN TRUE ELSE FALSE END AS reconciled,
+            ro.id AS report_object_id
         FROM
-            account_move_line
-            LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+            account_report_standard_ledger_report_object ro
+            INNER JOIN account_move_line aml ON (CASE WHEN %s THEN aml.account_id = ro.object_id ELSE aml.partner_id = ro.object_id END)
+            LEFT JOIN account_account acc ON (aml.account_id = acc.id)
             LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
-            LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
-            LEFT JOIN matching_in_futur_before_init mif ON (account_move_line.full_reconcile_id = mif.id)
-            LEFT JOIN matching_in_futur_after_date_to mifad ON (account_move_line.full_reconcile_id = mifad.id)
-       	WHERE
+            LEFT JOIN account_move m ON (aml.move_id = m.id)
+            LEFT JOIN matching_in_futur_before_init mif ON (aml.full_reconcile_id = mif.id)
+            LEFT JOIN matching_in_futur_after_date_to mifad ON (aml.full_reconcile_id = mifad.id)
+        WHERE
             m.state IN %s
-            AND account_move_line.company_id = %s
-            AND account_move_line.date < %s
+            AND ro.report_id = %s
+            AND aml.company_id = %s
+            AND aml.date < %s
             AND acc_type.include_initial_balance = TRUE
-            AND account_move_line.journal_id IN %s
-            AND account_move_line.account_id IN %s
-            AND (%s OR account_move_line.partner_id IN %s)
+            AND aml.journal_id IN %s
+            AND aml.account_id IN %s
+            AND (%s OR aml.partner_id IN %s)
             AND NOT (%s AND acc.compacted = TRUE)
-            AND (%s OR NOT (account_move_line.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL))
-        	AND acc.type_third_parties IN ('supplier', 'customer') AND (account_move_line.full_reconcile_id IS NULL OR mif.id IS NOT NULL)
+            AND (%s OR NOT (aml.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL))
+        	AND acc.type_third_parties IN ('supplier', 'customer')
+            AND (aml.full_reconcile_id IS NULL OR mif.id IS NOT NULL)
         ORDER BY
-            account_move_line.date
+            aml.date
         """
 
         params = [
@@ -460,8 +525,11 @@ class AccountStandardLedger(models.TransientModel):
             # SELECT
             self.report_id.id,
             self.env.uid,
+            # FROM
+            True if self.type_ledger in ('general', 'open', 'journal') else False,
             # WHERE
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            self.report_id.id,
             self.company_id.id,
             self.date_from,
             tuple(self.journal_ids.ids) if self.journal_ids else (None,),
@@ -478,7 +546,7 @@ class AccountStandardLedger(models.TransientModel):
         # lines_table
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id,date, date_maturity, debit, credit, balance, full_reconcile_id, reconciled)
+            (report_id, create_uid, create_date, account_id, type, journal_id, partner_id, move_id,date, date_maturity, debit, credit, balance, full_reconcile_id, reconciled, report_object_id)
 
         WITH matching_in_futur_after_date_to (id) AS
         (
@@ -496,37 +564,40 @@ class AccountStandardLedger(models.TransientModel):
             %s AS report_id,
             %s AS create_uid,
             NOW() AS create_date,
-            account_move_line.account_id,
+            aml.account_id,
             '2_line' AS type,
-            account_move_line.journal_id,
-            account_move_line.partner_id,
-            account_move_line.move_id,
-            account_move_line.date,
-            account_move_line.date_maturity,
-            account_move_line.debit,
-            account_move_line.credit,
-            account_move_line.balance,
-            account_move_line.full_reconcile_id,
-            CASE WHEN account_move_line.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL THEN TRUE ELSE FALSE END AS reconciled
+            aml.journal_id,
+            aml.partner_id,
+            aml.move_id,
+            aml.date,
+            aml.date_maturity,
+            aml.debit,
+            aml.credit,
+            aml.balance,
+            aml.full_reconcile_id,
+            CASE WHEN aml.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL THEN TRUE ELSE FALSE END AS reconciled,
+            ro.id AS report_object_id
         FROM
-            account_move_line
-            LEFT JOIN account_journal j ON (account_move_line.journal_id = j.id)
-            LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+            account_report_standard_ledger_report_object ro
+            INNER JOIN account_move_line aml ON (CASE WHEN %s THEN aml.account_id = ro.object_id ELSE aml.partner_id = ro.object_id END)
+            LEFT JOIN account_journal j ON (aml.journal_id = j.id)
+            LEFT JOIN account_account acc ON (aml.account_id = acc.id)
             LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
-            LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
-            LEFT JOIN matching_in_futur_after_date_to mifad ON (account_move_line.full_reconcile_id = mifad.id)
+            LEFT JOIN account_move m ON (aml.move_id = m.id)
+            LEFT JOIN matching_in_futur_after_date_to mifad ON (aml.full_reconcile_id = mifad.id)
         WHERE
             m.state IN %s
-            AND account_move_line.company_id = %s
-            AND account_move_line.date >= %s
-            AND account_move_line.date <= %s
-            AND account_move_line.journal_id IN %s
-            AND account_move_line.account_id IN %s
-            AND (%s OR account_move_line.partner_id IN %s)
+            AND ro.report_id = %s
+            AND aml.company_id = %s
+            AND aml.date >= %s
+            AND aml.date <= %s
+            AND aml.journal_id IN %s
+            AND aml.account_id IN %s
+            AND (%s OR aml.partner_id IN %s)
             AND NOT (%s AND acc.compacted = TRUE)
-            AND (%s OR NOT (account_move_line.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL))
+            AND (%s OR NOT (aml.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL))
         ORDER BY
-            account_move_line.date
+            aml.date
         """
 
         params = [
@@ -535,9 +606,16 @@ class AccountStandardLedger(models.TransientModel):
             self.date_to,
 
             # lines_table
+            # SELECT
             self.report_id.id,
             self.env.uid,
+
+            # FROM
+            True if self.type_ledger in ('general', 'open', 'journal') else False,
+
+            # WHERE
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            self.report_id.id,
             self.company_id.id,
             self.date_from,
             self.date_to,
@@ -555,33 +633,36 @@ class AccountStandardLedger(models.TransientModel):
         # lines_table
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance)
+            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance, report_object_id)
         SELECT
             %s AS report_id,
             %s AS create_uid,
             NOW() AS create_date,
-            MIN(account_move_line.account_id) AS account_id,
+            MIN(aml.account_id) AS account_id,
             '3_compact' AS type,
             %s AS date,
-            COALESCE(SUM(account_move_line.debit), 0) AS debit,
-            COALESCE(SUM(account_move_line.credit), 0) AS credit,
-            COALESCE(SUM(account_move_line.balance), 0) AS balance
+            COALESCE(SUM(aml.debit), 0) AS debit,
+            COALESCE(SUM(aml.credit), 0) AS credit,
+            COALESCE(SUM(aml.balance), 0) AS balance,
+            ro.id AS report_object_id
         FROM
-            account_move_line
-            LEFT JOIN account_journal j ON (account_move_line.journal_id = j.id)
-            LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+            account_report_standard_ledger_report_object ro
+            INNER JOIN account_move_line aml ON (CASE WHEN %s THEN aml.account_id = ro.object_id ELSE aml.partner_id = ro.object_id END)
+            LEFT JOIN account_journal j ON (aml.journal_id = j.id)
+            LEFT JOIN account_account acc ON (aml.account_id = acc.id)
             LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
-            LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
+            LEFT JOIN account_move m ON (aml.move_id = m.id)
         WHERE
             m.state IN %s
-            AND account_move_line.company_id = %s
-            AND account_move_line.date >= %s
-            AND account_move_line.date <= %s
-            AND account_move_line.journal_id IN %s
-            AND account_move_line.account_id IN %s
+            AND ro.report_id = %s
+            AND aml.company_id = %s
+            AND aml.date >= %s
+            AND aml.date <= %s
+            AND aml.journal_id IN %s
+            AND aml.account_id IN %s
             AND (%s AND acc.compacted = TRUE)
         GROUP BY
-            account_move_line.account_id
+            aml.account_id
         """
 
         params = [
@@ -589,8 +670,11 @@ class AccountStandardLedger(models.TransientModel):
             self.report_id.id,
             self.env.uid,
             self.date_from,
+            # FROM
+            True if self.type_ledger in ('general', 'open', 'journal') else False,
             # WHERE
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            self.report_id.id,
             self.company_id.id,
             self.date_from,
             self.date_to,
@@ -604,7 +688,7 @@ class AccountStandardLedger(models.TransientModel):
     def _sql_account_total(self):
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance, cumul_balance)
+            (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance, cumul_balance, report_object_id)
         SELECT
             %s AS report_id,
             %s AS create_uid,
@@ -615,7 +699,8 @@ class AccountStandardLedger(models.TransientModel):
             COALESCE(SUM(debit), 0) AS debit,
             COALESCE(SUM(credit), 0) AS credit,
             COALESCE(SUM(balance), 0) AS balance,
-            COALESCE(SUM(balance), 0) AS cumul_balance
+            COALESCE(SUM(balance), 0) AS cumul_balance,
+            MIN(report_object_id) AS report_object_id
         FROM
             account_report_standard_ledger_line
         WHERE
@@ -665,7 +750,7 @@ class AccountStandardLedger(models.TransientModel):
     def _sql_partner_total(self):
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, partner_id, type, date, debit, credit, balance, cumul_balance)
+            (report_id, create_uid, create_date, partner_id, type, date, debit, credit, balance, cumul_balance, report_object_id)
         SELECT
             %s AS report_id,
             %s AS create_uid,
@@ -676,7 +761,8 @@ class AccountStandardLedger(models.TransientModel):
             COALESCE(SUM(debit), 0) AS debit,
             COALESCE(SUM(credit), 0) AS credit,
             COALESCE(SUM(balance), 0) AS balance,
-            COALESCE(SUM(balance), 0) AS cumul_balance
+            COALESCE(SUM(balance), 0) AS cumul_balance,
+            MIN(report_object_id) AS report_object_id
         FROM
             account_report_standard_ledger_line
         WHERE

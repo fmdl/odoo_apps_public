@@ -464,40 +464,40 @@ class AccountStandardLedger(models.TransientModel):
 
         WITH matching_in_futur_before_init (id) AS
         (
-        SELECT DISTINCT
-            afr.id AS id
-        FROM
-            account_full_reconcile afr
-        INNER JOIN account_move_line aml ON aml.full_reconcile_id=afr.id
-        WHERE
-            aml.company_id = %s
-            AND aml.date >= %s
+            SELECT DISTINCT
+                afr.id AS id
+            FROM
+                account_full_reconcile afr
+            INNER JOIN account_move_line aml ON aml.full_reconcile_id=afr.id
+            WHERE
+                aml.company_id = %s
+                AND aml.date >= %s
         ),
 
         matching_in_futur_after_date_to (id) AS
         (
-        SELECT DISTINCT
-            afr.id AS id
-        FROM
-            account_full_reconcile afr
-            INNER JOIN account_move_line aml ON aml.full_reconcile_id = afr.id
-        WHERE
-            aml.company_id = %s
-            AND aml.date > %s
+            SELECT DISTINCT
+                afr.id AS id
+            FROM
+                account_full_reconcile afr
+                INNER JOIN account_move_line aml ON aml.full_reconcile_id = afr.id
+            WHERE
+                aml.company_id = %s
+                AND aml.date > %s
         ),
 
         initial_balance (id, balance) AS
         (
-        SELECT
-            MIN(report_object_id) AS id,
-            COALESCE(SUM(balance), 0) AS balance
-        FROM
-            account_report_standard_ledger_line
-        WHERE
-            report_id = %s
-            AND type = '0_init'
-        GROUP BY
-            report_object_id
+            SELECT
+                MIN(report_object_id) AS id,
+                COALESCE(SUM(balance), 0) AS balance
+            FROM
+                account_report_standard_ledger_line
+            WHERE
+                report_id = %s
+                AND type = '0_init'
+            GROUP BY
+                report_object_id
         ),
 
         date_range AS

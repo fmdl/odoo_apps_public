@@ -244,14 +244,12 @@ class AccountStandardLedger(models.TransientModel):
 
         self._sql_report_object()
         print(t - time.time(), 'object')
-        if self.type_ledger != 'open':
-            self._sql_unaffected_earnings()
-            print(t - time.time(), 'unaffected')
+        self._sql_unaffected_earnings()
+        print(t - time.time(), 'unaffected')
         self._sql_init_balance()
         print(t - time.time(), 'init_balance')
-        if self.type_ledger != 'open':
-            self._sql_lines()
-            print(t - time.time(), 'sql_line')
+        self._sql_lines()
+        print(t - time.time(), 'sql_line')
         if self.compact_account:
             self._sql_lines_compacted()
             print(t - time.time(), 'compacted')
@@ -321,8 +319,8 @@ class AccountStandardLedger(models.TransientModel):
             %s AS account_id,
             '0_init' AS type,
             %s AS date,
-            CASE WHEN %s THEN COALESCE(SUM(aml.debit), 0) ELSE CASE WHEN COALESCE(sum(aml.balance), 0) <= 0 THEN 0 ELSE COALESCE(sum(aml.balance), 0) END END AS debit,
-            CASE WHEN %s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(sum(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(sum(aml.balance), 0) END END AS credit,
+            CASE WHEN %s THEN COALESCE(SUM(aml.debit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) <= 0 THEN 0 ELSE COALESCE(SUM(aml.balance), 0) END END AS debit,
+            CASE WHEN %s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(-SUM(aml.balance), 0) END END AS credit,
             COALESCE(SUM(aml.balance), 0) AS balance,
             COALESCE(SUM(aml.balance), 0) AS cumul_balance,
             %s AS report_object_id
@@ -384,8 +382,8 @@ class AccountStandardLedger(models.TransientModel):
             END) AS group_by_key,
             '0_init' AS type,
             %s AS date,
-            CASE WHEN %s THEN COALESCE(SUM(aml.debit), 0) ELSE CASE WHEN COALESCE(sum(aml.balance), 0) <= 0 THEN 0 ELSE COALESCE(sum(aml.balance), 0) END END AS debit,
-            CASE WHEN %s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(sum(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(sum(aml.balance), 0) END END AS credit,
+            CASE WHEN %s THEN COALESCE(SUM(aml.debit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) <= 0 THEN 0 ELSE COALESCE(SUM(aml.balance), 0) END END AS debit,
+            CASE WHEN %s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(-SUM(aml.balance), 0) END END AS credit,
             COALESCE(SUM(aml.balance), 0) AS balance,
             COALESCE(SUM(aml.balance), 0) AS cumul_balance,
             MIN(ro.id) AS report_object_id
@@ -522,7 +520,7 @@ class AccountStandardLedger(models.TransientModel):
             AND ro.report_id = %s
             AND aml.company_id = %s
             AND (CASE
-                    WHEN aml.date >= %s THEN TRUE
+                    WHEN aml.date >= %s THEN %s
                     ELSE acc.type_third_parties IN ('supplier', 'customer') AND (aml.full_reconcile_id IS NULL OR mif.id IS NOT NULL)
                 END)
             AND aml.date <= %s
@@ -561,6 +559,7 @@ class AccountStandardLedger(models.TransientModel):
             self.report_id.id,
             self.company_id.id,
             self.date_from,
+            True if self.type_ledger != 'open' else False,
             self.date_to,
             tuple(self.journal_ids.ids) if self.journal_ids else (None,),
             tuple(self.account_ids.ids) if self.account_ids else (None,),
@@ -577,7 +576,6 @@ class AccountStandardLedger(models.TransientModel):
         query = """
         INSERT INTO account_report_standard_ledger_line
             (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance, cumul_balance, report_object_id)
-
 
         WITH initial_balance (id, balance) AS
         (

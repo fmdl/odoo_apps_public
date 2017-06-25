@@ -271,7 +271,7 @@ class AccountStandardLedger(models.TransientModel):
 
     def _sql_report_object(self):
         query = """INSERT INTO  account_report_standard_ledger_report_object
-            (report_id, create_uid, create_date, object_id)
+            (report_id, create_uid, create_date, object_id, name)
             SELECT DISTINCT
                 %s AS report_id,
                 %s AS create_uid,
@@ -279,9 +279,15 @@ class AccountStandardLedger(models.TransientModel):
                 CASE
                     WHEN %s THEN aml.account_id
                     ELSE aml.partner_id
-                END AS object_id
+                END AS object_id,
+                CASE
+                    WHEN %s THEN acc.code || ' ' || acc.name
+                    ELSE rep.name
+                END AS name
             FROM
                 account_move_line aml
+                LEFT JOIN account_account acc ON (acc.id = aml.account_id)
+                LEFT JOIN res_partner rep ON (rep.id = aml.partner_id)
             WHERE
                 aml.company_id = %s
                 AND aml.journal_id IN %s
@@ -293,6 +299,7 @@ class AccountStandardLedger(models.TransientModel):
             # SELECT
             self.report_id.id,
             self.env.uid,
+            True if self.type_ledger in ('general', 'open', 'journal') else False,
             True if self.type_ledger in ('general', 'open', 'journal') else False,
             # WHERE
             self.company_id.id,
@@ -309,6 +316,9 @@ class AccountStandardLedger(models.TransientModel):
         if unaffected_earnings_account not in self.account_ids:
             return
 
+        report_object_id = self.report_id.report_object_ids.create({'report_id': self.report_id.id,
+                                                                    'object_id': unaffected_earnings_account.id,
+                                                                    'name': unaffected_earnings_account.name})
         query = """
         INSERT INTO account_report_standard_ledger_line
             (report_id, create_uid, create_date, account_id, type, date, debit, credit, balance, cumul_balance, report_object_id)
@@ -323,16 +333,14 @@ class AccountStandardLedger(models.TransientModel):
             CASE WHEN %s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(sum(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(sum(aml.balance), 0) END END AS credit,
             COALESCE(SUM(aml.balance), 0) AS balance,
             COALESCE(SUM(aml.balance), 0) AS cumul_balance,
-            MIN(ro.id) AS report_object_id
+            %s AS report_object_id
         FROM
-            account_report_standard_ledger_report_object ro
-            INNER JOIN account_move_line aml ON (aml.account_id = ro.object_id)
+            account_move_line aml
             LEFT JOIN account_account acc ON (aml.account_id = acc.id)
             LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
             LEFT JOIN account_move m ON (aml.move_id = m.id)
         WHERE
             m.state IN %s
-            AND ro.report_id = %s
             AND aml.company_id = %s
             AND aml.date < %s
             AND acc_type.include_initial_balance = FALSE
@@ -346,9 +354,9 @@ class AccountStandardLedger(models.TransientModel):
             self.date_from,
             self.init_balance_history,
             self.init_balance_history,
+            report_object_id.id,
             # WHERE
             ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
-            self.report_id.id,
             company.id,
             self.date_from, ]
 

@@ -287,8 +287,6 @@ class AccountStandardLedger(models.TransientModel):
             self.partner_select_ids = False
 
     def compute_data(self):
-        t = time.time()
-
         self.pre_compute()
 
         self._sql_report_object()
@@ -308,8 +306,6 @@ class AccountStandardLedger(models.TransientModel):
         line_obj = self.env['account.report.standard.ledger.line']
         self.report_id.line_total_ids = line_obj.search([('report_id', '=', self.report_id.id), ('type', 'in', ('4_total', '5_super_total'))])
         self.report_id.line_super_total_id = line_obj.search([('report_id', '=', self.report_id.id), ('type', '=', '5_super_total')], limit=1)
-
-        print(t - time.time(), 'refresh')
 
     def _sql_report_object(self):
         query = """INSERT INTO  account_report_standard_ledger_report_object

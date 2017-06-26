@@ -53,6 +53,7 @@ class AccountStandardLedgerReport(models.TransientModel):
     report_object_ids = fields.One2many('account.report.standard.ledger.report.object', 'report_id')
     report_name = fields.Char()
     line_total_ids = fields.Many2many('account.report.standard.ledger.line', relation='table_standard_report_line_total')
+    line_super_total_id = fields.Many2one('account.report.standard.ledger.line')
     print_time = fields.Char()
     date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
     date_to = fields.Date(string='End Date', help='Use to compute the entrie matched with futur.')
@@ -65,7 +66,7 @@ class AccountStandardLedgerLines(models.TransientModel):
 
     report_id = fields.Many2one('account.report.standard.ledger.report')
     account_id = fields.Many2one('account.account', 'Account')
-    type = fields.Selection([('0_init', 'Initial'), ('1_init_line', 'Init Line'), ('2_line', 'Line'), ('3_compact', 'Compacted'), ('4_total', 'Total')], string='Type')
+    type = fields.Selection([('0_init', 'Initial'), ('1_init_line', 'Init Line'), ('2_line', 'Line'), ('3_compact', 'Compacted'), ('4_total', 'Total'), ('5_super_total','Super Total')], string='Type')
     type_view = fields.Selection([('init', 'Init'), ('normal', 'Normal'), ('total', 'Total')])
     journal_id = fields.Many2one('account.journal', 'Journal')
     partner_id = fields.Many2one('res.partner', 'Partner')
@@ -192,7 +193,7 @@ class AccountStandardLedger(models.TransientModel):
     company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.env.user.company_id)
     company_currency_id = fields.Many2one('res.currency', related='company_id.currency_id', string="Company Currency", readonly=True,
                                           help='Utility field to express amount currency', store=True)
-    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]),
+    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([('company_id','=',self.env.user.company_id.id)]),
                                    help='Select journal, for the Open Ledger you need to set all journals.')
     date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
     date_to = fields.Date(string='End Date', help='Use to compute the entrie matched with futur.')
@@ -209,7 +210,6 @@ class AccountStandardLedger(models.TransientModel):
                                          ], string="Partner's", required=True, default='supplier')
     report_name = fields.Char('Report Name')
     compact_account = fields.Boolean('Compacte account.', default=False)
-    # lines_ids = fields.One2many('account.report.standard.ledger.line', 'report_id', string='Lines')
     report_id = fields.Many2one('account.report.standard.ledger.report')
     account_ids = fields.Many2many('account.account', relation='table_standard_report_accounts')
     partner_ids = fields.Many2many('res.partner', relation='table_standard_report_partner')
@@ -328,11 +328,14 @@ class AccountStandardLedger(models.TransientModel):
         if self.compact_account and self.type_ledger == 'general':
             self._sql_lines_compacted()
         self._sql_total()
+        self._sql_super_total()
         self.refresh()
 
         # complet total line
         line_obj = self.env['account.report.standard.ledger.line']
-        self.report_id.line_total_ids = line_obj.search([('report_id', '=', self.report_id.id), ('type', '=', '4_total')])
+        self.report_id.line_total_ids = line_obj.search([('report_id', '=', self.report_id.id), ('type', 'in', ('4_total','5_super_total'))])
+        self.report_id.line_super_total_id = line_obj.search([('report_id', '=', self.report_id.id), ('type', '=', '5_super_total')], limit=1)
+
         print(t - time.time(), 'refresh')
 
     def _sql_report_object(self):
@@ -820,6 +823,44 @@ class AccountStandardLedger(models.TransientModel):
             # WHERE
             self.report_id.id,
 
+        ]
+        self.env.cr.execute(query, tuple(params))
+
+    def _sql_super_total(self):
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, type, type_view, date, debit, credit, balance, cumul_balance, current, age_30_days, age_60_days, age_90_days, age_120_days, older, company_currency_id)
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            '5_super_total' AS type,
+            'total' AS type_view,
+            %s AS date,
+            COALESCE(SUM(debit), 0) AS debit,
+            COALESCE(SUM(credit), 0) AS credit,
+            COALESCE(SUM(balance), 0) AS balance,
+            COALESCE(SUM(balance), 0) AS cumul_balance,
+            COALESCE(SUM(current), 0) AS current,
+            COALESCE(SUM(age_30_days), 0) AS age_30_days,
+            COALESCE(SUM(age_60_days), 0) AS age_60_days,
+            COALESCE(SUM(age_90_days), 0) AS age_90_days,
+            COALESCE(SUM(age_120_days), 0) AS age_120_days,
+            COALESCE(SUM(older), 0) AS older,
+            %s AS company_currency_id
+        FROM
+            account_report_standard_ledger_line
+        WHERE
+            report_id = %s
+            AND type = '4_total'
+        """
+        params = [
+            # SELECT
+            self.report_id.id,
+            self.env.uid,
+            self.report_id.date_from,
+            self.company_currency_id.id,
+            self.report_id.id,
         ]
         self.env.cr.execute(query, tuple(params))
 

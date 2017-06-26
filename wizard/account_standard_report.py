@@ -66,7 +66,8 @@ class AccountStandardLedgerLines(models.TransientModel):
 
     report_id = fields.Many2one('account.report.standard.ledger.report')
     account_id = fields.Many2one('account.account', 'Account')
-    type = fields.Selection([('0_init', 'Initial'), ('1_init_line', 'Init Line'), ('2_line', 'Line'), ('3_compact', 'Compacted'), ('4_total', 'Total'), ('5_super_total','Super Total')], string='Type')
+    type = fields.Selection([('0_init', 'Initial'), ('1_init_line', 'Init Line'), ('2_line', 'Line'), ('3_compact',
+                                                                                                       'Compacted'), ('4_total', 'Total'), ('5_super_total', 'Super Total')], string='Type')
     type_view = fields.Selection([('init', 'Init'), ('normal', 'Normal'), ('total', 'Total')])
     journal_id = fields.Many2one('account.journal', 'Journal')
     partner_id = fields.Many2one('res.partner', 'Partner')
@@ -95,38 +96,10 @@ class AccountStandardLedgerLines(models.TransientModel):
     @api.model
     def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):
         res = super(AccountStandardLedgerLines, self).read_group(domain, fields, groupby, offset, limit=limit, orderby=orderby, lazy=lazy)
-
-        if 'cumul_balance' in fields and 'read_report_id' in self.env.context:
-            report = self.env.context.get('read_report_id')
-            totals = self.search([('type','=','4_total'), ('report_id', '=', report), ],)
-
-            if 'account_id' in groupby and len(groupby) == 1:
-                dict_vals = {}
-                for tot in totals:
-                    dict_vals[tot.account_id.id] = tot.balance
-                for line in res:
-                    line['cumul_balance'] = dict_vals.get(line.get('account_id')[0],0)
-                return res
-            if 'journal_id' in groupby and len(groupby) == 1:
-                dict_vals = {}
-                for tot in totals:
-                    dict_vals[tot.journal_id.id] = tot.balance
-                for line in res:
-                    line['cumul_balance'] = dict_vals.get(line.get('journal_id')[0],0)
-                return res
-            if 'partner_id' in groupby and len(groupby) == 1:
-                dict_vals = {}
-                for tot in totals:
-                    dict_vals[tot.partner_id.id] = tot.balance
-                for line in res:
-                    line['cumul_balance'] = dict_vals.get(line.get('partner_id')[0],0)
-                return res
-
+        if 'cumul_balance' in fields and 'debit' in fields and 'credit' in fields:
             for line in res:
-                if 'account_id' in line:
-                    line['cumul_balance'] = False
+                line['cumul_balance'] = line['debit'] - line['credit']
         return res
-
 
 
 class AccountStandardLedgerReportObject(models.TransientModel):
@@ -193,7 +166,7 @@ class AccountStandardLedger(models.TransientModel):
     company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.env.user.company_id)
     company_currency_id = fields.Many2one('res.currency', related='company_id.currency_id', string="Company Currency", readonly=True,
                                           help='Utility field to express amount currency', store=True)
-    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([('company_id','=',self.env.user.company_id.id)]),
+    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([('company_id', '=', self.env.user.company_id.id)]),
                                    help='Select journal, for the Open Ledger you need to set all journals.')
     date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
     date_to = fields.Date(string='End Date', help='Use to compute the entrie matched with futur.')
@@ -269,7 +242,7 @@ class AccountStandardLedger(models.TransientModel):
             'views': [(self.env.ref('account_standard_report.view_aged_tree').id if self.type_ledger == 'aged' else False, 'tree'), (False, 'form')],
             'res_model': 'account.report.standard.ledger.line',
             'type': 'ir.actions.act_window',
-            'domain': "[('report_id','=',%s)]" % (self.report_id.id),
+            'domain': "[('report_id','=',%s),('type','!=','5_super_total')]" % (self.report_id.id),
             'context': {'search_default_%s' % self.type_ledger: 1, 'read_report_id': self.report_id.id},
             'target': 'current',
         }
@@ -333,7 +306,7 @@ class AccountStandardLedger(models.TransientModel):
 
         # complet total line
         line_obj = self.env['account.report.standard.ledger.line']
-        self.report_id.line_total_ids = line_obj.search([('report_id', '=', self.report_id.id), ('type', 'in', ('4_total','5_super_total'))])
+        self.report_id.line_total_ids = line_obj.search([('report_id', '=', self.report_id.id), ('type', 'in', ('4_total', '5_super_total'))])
         self.report_id.line_super_total_id = line_obj.search([('report_id', '=', self.report_id.id), ('type', '=', '5_super_total')], limit=1)
 
         print(t - time.time(), 'refresh')

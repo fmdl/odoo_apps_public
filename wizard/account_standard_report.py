@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import calendar
+import time
 
+import odoo.addons.decimal_precision as dp
 from datetime import datetime, timedelta
 from odoo import api, models, fields, _
 from odoo.tools import float_is_zero
@@ -44,6 +46,75 @@ class AccountStandardLedgerPeriode(models.TransientModel):
     date_to = fields.Datetime('Date to')
 
 
+class AccountStandardLedgerReport(models.TransientModel):
+    _name = 'account.report.standard.ledger.report'
+
+    name = fields.Char()
+    report_object_ids = fields.One2many('account.report.standard.ledger.report.object', 'report_id')
+    report_name = fields.Char()
+    line_total_ids = fields.Many2many('account.report.standard.ledger.line', relation='table_standard_report_line_total')
+    line_super_total_id = fields.Many2one('account.report.standard.ledger.line')
+    print_time = fields.Char()
+    date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
+    date_to = fields.Date(string='End Date', help='Use to compute the entrie matched with futur.')
+
+
+class AccountStandardLedgerLines(models.TransientModel):
+    _name = 'account.report.standard.ledger.line'
+    _order = 'id'  # ,move_id,account_id #type,date,move_line_id_id,
+    _rec_name = 'move_id'
+
+    report_id = fields.Many2one('account.report.standard.ledger.report')
+    account_id = fields.Many2one('account.account', 'Account')
+    type = fields.Selection([('0_init', 'Initial'), ('1_init_line', 'Init Line'), ('2_line', 'Line'), ('3_compact',
+                                                                                                       'Compacted'), ('4_total', 'Total'), ('5_super_total', 'Super Total')], string='Type')
+    type_view = fields.Selection([('init', 'Init'), ('normal', 'Normal'), ('total', 'Total')])
+    journal_id = fields.Many2one('account.journal', 'Journal')
+    partner_id = fields.Many2one('res.partner', 'Partner')
+    group_by_key = fields.Char()
+    move_id = fields.Many2one('account.move', 'Entrie')
+    move_line_id = fields.Many2one('account.move.line')
+    date = fields.Date()
+    date_maturity = fields.Date('Due Date')
+    debit = fields.Float(default=0.0, digits=dp.get_precision('Account'))
+    credit = fields.Float(default=0.0, digits=dp.get_precision('Account'))
+    balance = fields.Float(default=0.0, digits=dp.get_precision('Account'))
+    cumul_balance = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='Balance')
+    full_reconcile_id = fields.Many2one('account.full.reconcile', 'Match.')
+    reconciled = fields.Boolean('Reconciled')
+    report_object_id = fields.Many2one('account.report.standard.ledger.report.object')
+
+    current = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='Not due')
+    age_30_days = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='30 days')
+    age_60_days = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='60 days')
+    age_90_days = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='90 days')
+    age_120_days = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='120 days')
+    older = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='Older')
+
+    company_currency_id = fields.Many2one('res.currency')
+
+    @api.model
+    def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):
+        res = super(AccountStandardLedgerLines, self).read_group(domain, fields, groupby, offset, limit=limit, orderby=orderby, lazy=lazy)
+        if 'cumul_balance' in fields and 'debit' in fields and 'credit' in fields:
+            for line in res:
+                line['cumul_balance'] = line['debit'] - line['credit']
+        return res
+
+
+class AccountStandardLedgerReportObject(models.TransientModel):
+    _name = 'account.report.standard.ledger.report.object'
+    _order = 'name, id'
+
+    name = fields.Char()
+    object_id = fields.Integer()
+    report_id = fields.Many2one('account.report.standard.ledger.report')
+    line_ids = fields.One2many('account.report.standard.ledger.line', 'report_object_id')
+    account_id = fields.Many2one('account.account', 'Account')
+    journal_id = fields.Many2one('account.journal', 'Journal')
+    partner_id = fields.Many2one('res.partner', 'Partner')
+
+
 class AccountStandardLedger(models.TransientModel):
     _name = 'account.report.standard.ledger'
     _description = 'Account Standard Ledger'
@@ -54,8 +125,8 @@ class AccountStandardLedger(models.TransientModel):
 
         today_year = fields.datetime.now().year
 
-        last_day = self.env.user.company_id.fiscalyear_last_day or 31
-        last_month = self.env.user.company_id.fiscalyear_last_month or 12
+        last_day = self.company_id.fiscalyear_last_day or 31
+        last_month = self.company_id.fiscalyear_last_month or 12
         periode_obj = self.env['account.report.standard.ledger.periode']
         periode_obj.search([]).unlink()
         periode_ids = periode_obj
@@ -72,6 +143,7 @@ class AccountStandardLedger(models.TransientModel):
             periode_ids += periode_obj.create(vals)
         return False
 
+    name = fields.Char(default='Standard Report')
     type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger'), ('open', 'Open Ledger'), ('aged', 'Aged Balance')], string='Type', default='general', required=True,
                                    help=' * General Ledger : Journal entries group by account\n'
                                    ' * Partner Leger : Journal entries group by partner, with only payable/recevable accounts\n'
@@ -85,26 +157,16 @@ class AccountStandardLedger(models.TransientModel):
                                 help='Only for entrie with a payable/receivable account.\n'
                                 ' * Check this box to see un-reconcillied and reconciled entries with payable.\n'
                                 ' * Uncheck to see only un-reconcillied entries. Can be use only with parnter ledger.\n')
-    rem_futur_reconciled = fields.Boolean('With entries matched with other entries dated after End Date.', default=False,
-                                          help=' * Check : Reconciled Entries matched with futur is considered like unreconciled. Matching number in futur is replace by *.\n'
-                                          ' * Uncheck : Reconciled Entries matched with futur is considered like reconciled. Carfull use if "With Reconciled Entries" is uncheck.\n')
-    partner_ids = fields.Many2many(comodel_name='res.partner', string='Partners', domain=['|', ('is_company', '=', True), ('parent_id', '=', False)], help='If empty, get all partners')
+    partner_select_ids = fields.Many2many(comodel_name='res.partner', string='Partners', domain=['|', ('is_company', '=', True), ('parent_id', '=', False)], help='If empty, get all partners')
     account_methode = fields.Selection([('include', 'Include'), ('exclude', 'Exclude')], string="Methode")
     account_in_ex_clude = fields.Many2many(comodel_name='account.account', string='Accounts', help='If empty, get all accounts')
-    with_init_balance = fields.Boolean('With Initial Report at Start Date', default=False,
-                                       help='The initial balance is compute with the fiscal date of company.\n'
-                                            ' * Check this box to generate the summary of initial balance.\n'
-                                            ' * Uncheck to see all entries.\n')
-    sum_group_by_top = fields.Boolean('Sum on Top', default=False, help='See the sum of element on top.')
-    sum_group_by_bottom = fields.Boolean('Sum on Bottom', default=True, help='See the sum of element on top.')
     init_balance_history = fields.Boolean('Initial balance with history.', default=True,
                                           help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
                                           ' * Uncheck this box to report only the balance before the Start Date\n')
-    detail_unreconcillied_in_init = fields.Boolean('Detail of un-reconcillied payable/receivable entries in initiale balance.', default=True,
-                                                   help=' * Check : Add the detail of entries un-reconcillied and with payable/receivable account in the report.\n'
-                                                   ' * Unckeck : no detail.\n')
     company_id = fields.Many2one('res.company', string='Company', readonly=True, default=lambda self: self.env.user.company_id)
-    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([]),
+    company_currency_id = fields.Many2one('res.currency', related='company_id.currency_id', string="Company Currency", readonly=True,
+                                          help='Utility field to express amount currency', store=True)
+    journal_ids = fields.Many2many('account.journal', string='Journals', required=True, default=lambda self: self.env['account.journal'].search([('company_id', '=', self.env.user.company_id.id)]),
                                    help='Select journal, for the Open Ledger you need to set all journals.')
     date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
     date_to = fields.Date(string='End Date', help='Use to compute the entrie matched with futur.')
@@ -115,13 +177,16 @@ class AccountStandardLedger(models.TransientModel):
     month_selec = fields.Selection([(1, '01 Junary'), (2, '02 Febuary'), (3, '03 March'), (4, '04 April'), (5, '05 May'), (6, '06 June'),
                                     (7, '07 Jully'), (8, '08 August'), (9, '09 September'), (10, '10 October'), (11, '11 November'), (12, '12 December')],
                                    string='Month')
-    result_selection = fields.Selection([('customer', 'Receivable Accounts'),
-                                         ('supplier', 'Payable Accounts'),
+    result_selection = fields.Selection([('customer', 'Customer'),
+                                         ('supplier', 'Supplier'),
                                          ('customer_supplier', 'Receivable and Payable Accounts')
-                                         ], string="Partner's", required=True, default='customer')
+                                         ], string="Partner's", required=True, default='supplier')
     report_name = fields.Char('Report Name')
     compact_account = fields.Boolean('Compacte account.', default=False)
-    reset_exp_acc_start_date = fields.Boolean('Reset expenses/revenue account at start date', default=True)
+    report_id = fields.Many2one('account.report.standard.ledger.report')
+    account_ids = fields.Many2many('account.account', relation='table_standard_report_accounts')
+    partner_ids = fields.Many2many('res.partner', relation='table_standard_report_partner')
+    type = fields.Selection([('account', 'Account'), ('partner', 'Partner'), ('journal', 'Journal')])
 
     @api.onchange('account_in_ex_clude')
     def on_change_summary(self):
@@ -136,12 +201,16 @@ class AccountStandardLedger(models.TransientModel):
             self.compact_account = False
         if self.type_ledger == 'aged':
             self.date_from = False
+            self.reconciled = False
         if self.type_ledger not in ('partner', 'aged',):
             self.reconciled = True
-            self.with_init_balance = True
             return {'domain': {'account_in_ex_clude': []}}
         self.account_in_ex_clude = False
-        return {'domain': {'account_in_ex_clude': [('internal_type', 'in', ('receivable', 'payable'))]}}
+        if self.result_selection == 'suplier':
+            return {'domain': {'account_in_ex_clude': [('type_third_parties', '=', 'supplier')]}}
+        if self.result_selection == 'customer':
+            return {'domain': {'account_in_ex_clude': [('type_third_parties', '=', 'customer')]}}
+        return {'domain': {'account_in_ex_clude': [('type_third_parties', 'in', ('supplier', 'customer'))]}}
 
     @api.onchange('periode_date')
     def on_change_periode_date(self):
@@ -162,582 +231,624 @@ class AccountStandardLedger(models.TransientModel):
         elif self.periode_date and not self.month_selec:
             self.on_change_periode_date()
 
-    @api.onchange('date_to')
-    def onchange_date_to(self):
-        if self.date_to is False:
-            self.rem_futur_reconciled = False
-        else:
-            self.rem_futur_reconciled = True
+    def action_view_lines(self):
+        self.ensure_one()
+        self.compute_data()
+
+        return {
+            'name': _("Ledger Lines"),
+            'view_type': 'form',
+            'view_mode': 'tree,form',
+            'views': [(self.env.ref('account_standard_report.view_aged_tree').id if self.type_ledger == 'aged' else False, 'tree'), (False, 'form')],
+            'res_model': 'account.report.standard.ledger.line',
+            'type': 'ir.actions.act_window',
+            'domain': "[('report_id','=',%s),('type','!=','5_super_total')]" % (self.report_id.id),
+            'context': {'search_default_%s' % self.type_ledger: 1, 'read_report_id': self.report_id.id},
+            'target': 'current',
+        }
 
     def print_pdf_report(self):
         self.ensure_one()
-        return self.env['report'].with_context(landscape=True).get_action(self, 'account_standard_report.report_account_standard_report', data={'active_id': self.id})
+        self.compute_data()
+
+        return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_report')
 
     def print_excel_report(self):
         self.ensure_one()
+        self.compute_data()
         return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel')
 
-    def pre_compute_form(self):
-        if self.type_ledger in ('partner', 'journal', 'open', 'aged'):
-            self.compact_account = False
-            self.reset_exp_acc_start_date = False
-        if self.type_ledger == 'aged':
-            self.date_from = False
-        if self.date_from is False:
-            self.with_init_balance = False
-        if self.type_ledger not in ('partner', 'aged',):
-            self.reconciled = True
-            self.with_init_balance = True
-            if self.date_from is False:
-                self.with_init_balance = False
-            self.partner_ids = False
-
-    def pre_print_report(self):
-        self.pre_compute_form()
-        data = {}
-        data.update({
-            'reconciled': self.reconciled,
-            'rem_futur_reconciled': self.rem_futur_reconciled,
-            'with_init_balance': self.with_init_balance,
-            'amount_currency': self.amount_currency,
-            'sum_group_by_top': self.summary or self.sum_group_by_top,
-            'sum_group_by_bottom': self.sum_group_by_bottom,
-            'type_ledger': self.type_ledger,
-            'summary': self.summary,
-            'partner_ids': self.partner_ids.ids,
-            'account_methode': self.account_methode,
-            'account_in_ex_clude': self.account_in_ex_clude.ids,
-            'init_balance_history': self.init_balance_history,
-            'detail_unreconcillied_in_init': self.detail_unreconcillied_in_init,
-            'journal_ids': self.journal_ids.ids,
-            'result_selection': self.result_selection,
-            'date_from': self.date_from,
-            'date_to': self.date_to,
-            'target_move': self.target_move,
-            'compact_account': self.compact_account,
-            'reset_exp_acc_start_date': self.reset_exp_acc_start_date,
-            'used_context': {},
-        })
+    def pre_compute(self):
         lang_code = self.env.context.get('lang') or 'en_US'
         date_format = self.env['res.lang']._lang_get(lang_code).date_format
         time_format = self.env['res.lang']._lang_get(lang_code).time_format
-        data['lines_group_by'], data['line_account'], data['group_by_data'], data['open_data'] = self._generate_data(data, date_format)
 
-        self._get_name_report()
-        data['name_report'] = self.report_name
-        data['date_from'] = datetime.strptime(data['date_from'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_from'] else False
-        data['date_to'] = datetime.strptime(data['date_to'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format) if data['date_to'] else False
-        data['res_company'] = self.env.user.company_id.name
-        data['time'] = fields.Datetime.context_timestamp(self.with_context(tz=self.env.user.tz), datetime.now()).strftime(('%s %s') % (date_format, time_format))
+        vals = {'report_name': self._get_name_report(),
+                'name': self._get_name_report(),
+                'print_time': '%s' % fields.Datetime.context_timestamp(self.with_context(tz=self.env.user.tz), datetime.now()).strftime(('%s %s') % (date_format, time_format)),
+                'date_to': self.date_to if self.date_to else "2099-01-01",
+                'date_from': self.date_from if self.date_from else "1970-01-01",
+                }
+        self.report_id = self.env['account.report.standard.ledger.report'].create(vals)
+        self.account_ids = self._search_account()
+        self.partner_ids = self._search_partner()
 
-        return data
+        if self.type_ledger in ('general', 'open'):
+            self.type = 'account'
+        elif self.type_ledger in ('partner', 'aged'):
+            self.type = 'partner'
+        else:
+            self.type = 'journal'
 
-    def do_query_unaffected_earnings(self, date_init_dt):
-        ''' Compute the sum of ending balances for all accounts that are of a type that does not bring forward the balance in new fiscal years.
-            This is needed because we have to display only one line for the initial balance of all expense/revenue accounts in the FEC.
-        '''
-        if not date_init_dt:
-            return []
-        unaffected_earnings_account = self.env['account.account'].search([('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
-        if not unaffected_earnings_account:
-            return []
-        company = self.env.user.company_id
-        sql_query = """
+        if self.type_ledger in ('partner', 'journal', 'open', 'aged'):
+            self.compact_account = False
+        if self.type_ledger not in ('partner', 'aged',):
+            self.reconciled = True
+            self.partner_select_ids = False
+
+    def compute_data(self):
+        t = time.time()
+
+        self.pre_compute()
+
+        self._sql_report_object()
+        if self.type == 'account':
+            self._sql_unaffected_earnings()
+        if self.type in ('account, partner'):
+            if self.type_ledger != 'aged':
+                self._sql_init_balance()
+        self._sql_lines()
+        if self.compact_account and self.type_ledger == 'general':
+            self._sql_lines_compacted()
+        self._sql_total()
+        self._sql_super_total()
+        self.refresh()
+
+        # complet total line
+        line_obj = self.env['account.report.standard.ledger.line']
+        self.report_id.line_total_ids = line_obj.search([('report_id', '=', self.report_id.id), ('type', 'in', ('4_total', '5_super_total'))])
+        self.report_id.line_super_total_id = line_obj.search([('report_id', '=', self.report_id.id), ('type', '=', '5_super_total')], limit=1)
+
+        print(t - time.time(), 'refresh')
+
+    def _sql_report_object(self):
+        query = """INSERT INTO  account_report_standard_ledger_report_object
+            (report_id, create_uid, create_date, object_id, name, account_id, partner_id, journal_id)
+            SELECT DISTINCT
+                %s AS report_id,
+                %s AS create_uid,
+                NOW() AS create_date,
+                CASE
+                    WHEN %s = 'account' THEN aml.account_id
+                    WHEN %s = 'partner' THEN aml.partner_id
+                    ELSE aml.journal_id
+                END AS object_id,
+                CASE
+                    WHEN %s = 'account' THEN acc.code || ' ' || acc.name
+                    WHEN %s = 'partner' THEN rep.name
+                    ELSE acj.code || ' ' || acj.name
+                END AS name,
+                CASE WHEN %s = 'account' THEN aml.account_id ELSE NULL END AS account_id,
+                CASE WHEN %s = 'partner' THEN aml.partner_id ELSE NULL END AS partner_id,
+                CASE WHEN %s = 'journal' THEN aml.journal_id ELSE NULL END AS journal_id
+            FROM
+                account_move_line aml
+                LEFT JOIN account_account acc ON (acc.id = aml.account_id)
+                LEFT JOIN res_partner rep ON (rep.id = aml.partner_id)
+                LEFT JOIN account_journal acj ON (acj.id = aml.journal_id)
+            WHERE
+                aml.company_id = %s
+                AND aml.journal_id IN %s
+                AND aml.account_id IN %s
+                AND (%s in ('account', 'journal') OR aml.partner_id IN %s)
+            ORDER BY
+                name
+            """
+
+        params = [
+            # SELECT
+            self.report_id.id,
+            self.env.uid,
+            self.type, self.type, self.type, self.type,
+            self.type, self.type, self.type,
+            # WHERE
+            self.company_id.id,
+            tuple(self.journal_ids.ids) if self.journal_ids else (None,),
+            tuple(self.account_ids.ids) if self.account_ids else (None,),
+            self.type,
+            tuple(self.partner_ids.ids) if self.partner_ids else (None,),
+        ]
+        self.env.cr.execute(query, tuple(params))
+
+    def _sql_unaffected_earnings(self):
+        company = self.company_id
+        unaffected_earnings_account = self.env['account.account'].search([('company_id', '=', company.id), ('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
+        if unaffected_earnings_account not in self.account_ids:
+            return
+
+        report_object_id = self.report_id.report_object_ids.create({'report_id': self.report_id.id,
+                                                                    'object_id': unaffected_earnings_account.id,
+                                                                    'name': '%s %s' % (unaffected_earnings_account.code, unaffected_earnings_account.name),
+                                                                    'account_id': unaffected_earnings_account.id})
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, account_id, type, type_view, date, debit, credit, balance, cumul_balance, company_currency_id, report_object_id)
         SELECT
-            COALESCE(SUM(account_move_line.debit), 0) AS debit,
-            COALESCE(SUM(account_move_line.credit), 0) AS credit,
-            COALESCE(SUM(account_move_line.balance), 0) AS balance,
-            COALESCE(SUM(account_move_line.amount_currency), 0) AS amount_currency
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            %s AS account_id,
+            '0_init' AS type,
+            'init' AS type_view,
+            %s AS date,
+            CASE WHEN %s THEN COALESCE(SUM(aml.debit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) <= 0 THEN 0 ELSE COALESCE(SUM(aml.balance), 0) END END AS debit,
+            CASE WHEN %s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(-SUM(aml.balance), 0) END END AS credit,
+            COALESCE(SUM(aml.balance), 0) AS balance,
+            COALESCE(SUM(aml.balance), 0) AS cumul_balance,
+            %s AS company_currency_id,
+            %s AS report_object_id
         FROM
-            account_move AS account_move_line__move_id, account_move_line
-            LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
+            account_move_line aml
+            LEFT JOIN account_account acc ON (aml.account_id = acc.id)
             LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
-            LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
+            LEFT JOIN account_move m ON (aml.move_id = m.id)
         WHERE
-            m.state = %s
-            AND account_move_line.date < %s
-            AND account_move_line.company_id = %s
-            AND account_move_line.move_id=account_move_line__move_id.id
-            AND acc_type.include_initial_balance = 'f'
+            m.state IN %s
+            AND aml.company_id = %s
+            AND aml.date < %s
+            AND acc_type.include_initial_balance = FALSE
         """
 
-        self.env.cr.execute(sql_query, (self.target_move, date_init_dt, company.id))
-        res = self.env.cr.dictfetchall()
-        unaffected_earnings_account = self.env['account.account'].search([('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
+        date_from_fiscal = self.company_id.compute_fiscalyear_dates(datetime.strptime(self.report_id.date_from, DEFAULT_SERVER_DATE_FORMAT))['date_from']
 
-        res = res[0]
-        res.update({'account_id': unaffected_earnings_account.id,
-                    'a_name': unaffected_earnings_account.name,
-                    'a_code': unaffected_earnings_account.code,
-                    'a_type':unaffected_earnings_account.user_type_id.id,
-                    'reduce_balance': True})
-        return res
-
-    def _generate_data(self, data, date_format):
-        rounding = self.env.user.company_id.currency_id.rounding or 0.01
-        with_init_balance = self.with_init_balance
-        date_from = self.date_from
-        date_to = self.date_to
-        type_ledger = self.type_ledger
-        compact_account = self.compact_account
-        reset_exp_acc_start_date = self.reset_exp_acc_start_date
-        detail_unreconcillied_in_init = self.detail_unreconcillied_in_init
-        date_from_dt = datetime.strptime(date_from, DEFAULT_SERVER_DATE_FORMAT) if date_from else False
-        date_init_dt = self._generate_date_init(date_from_dt)
-        accounts = self._search_account()
-
-        reconcile_clause, matching_in_futur, list_match_after_init = self._compute_reconcile_clause(date_init_dt)
-
-        res = self._generate_sql(data, accounts, reconcile_clause, date_to, date_from)
-        group_by_obj = self.env[D_LEDGER[type_ledger]['model']]
-
-        lines_group_by = {}
-        group_by_ids = []
-        group_by_field = D_LEDGER[type_ledger]['group_by']
-        line_account = self._generate_account_dict(accounts)
-
-        init_lines_to_compact = []
-        compacted_line_to_compact = []
-        new_list = []
-        for r in res:
-            date_move_dt = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
-
-            # Cas 1 : avant la date d'ouverture et, 401 non lettré avant la date d'ouverture
-            #       si compte avec balance initiale
-            #       -> pour calcul d'init
-            #       sinon
-            #       -> perdu
-            # Cas 2 : entre la date d'ouverture et date_from, et 401 non lettré avant dat_to
-            #       -> pour calcul d'init
-            # Cas 3 : après la date_from
-            #       -> pour affichage
-
-            add_in = 'view'
-            if with_init_balance:
-                if r['a_type'] in ('payable', 'receivable') and detail_unreconcillied_in_init:
-                    if not r['matching_number_id']:
-                        matched_in_future = False
-                        matched_after_init = False
-                    else:
-                        matched_after_init = True
-                        matched_in_future = True
-                        if r['matching_number_id'] in matching_in_futur:
-                            matched_in_future = False
-                        if r['matching_number_id'] in list_match_after_init:
-                            matched_after_init = False
-                else:
-                    matched_after_init = True
-                    matched_in_future = True
-
-                if date_move_dt < date_init_dt and matched_after_init:
-                    if r['include_initial_balance']:
-                        add_in = 'init'
-                    else:
-                        add_in = 'not add'
-                elif date_move_dt >= date_init_dt and date_from_dt and date_move_dt < date_from_dt and matched_in_future:
-                    add_in = 'init'
-                else:
-                    add_in = 'view'
-                if reset_exp_acc_start_date and not r['include_initial_balance'] and date_from_dt and date_move_dt < date_from_dt:
-                    add_in = 'not add'
-
-            r['reduce_balance'] = False
-            if add_in == 'init':
-                if date_move_dt < date_init_dt:  # r['a_type'] in ('payable', 'receivable') and
-                    r['reduce_balance'] = True
-                init_lines_to_compact.append(r)
-            elif add_in == 'view':
-                if compact_account and r['compacted'] and type_ledger == 'general':  # and (r['matching_number_id'] and not r['matching_number_id'] in matching_in_futur
-                    compacted_line_to_compact.append(r)
-                    append_r = False
-                else:
-                    if type_ledger == 'aged':
-                        r.update(self.get_aged_balance(r, rounding))
-                    date_move = datetime.strptime(r['date'], DEFAULT_SERVER_DATE_FORMAT)
-                    r['date'] = date_move.strftime(date_format)
-                    r['date_maturity'] = datetime.strptime(r['date_maturity'], DEFAULT_SERVER_DATE_FORMAT).strftime(date_format)
-                    r['displayed_name'] = '-'.join(
-                        r[field_name] for field_name in ('ref', 'name')
-                        if r[field_name] not in (None, '', '/')
-                    )
-                    # if move is matching with the future then replace matching number par *
-                    if r['matching_number_id'] in matching_in_futur:
-                        r['matching_number'] = '*'
-
-                    r['type_line'] = 'normal'
-                    append_r = True if not type_ledger == 'open' else False
-                    if date_from_dt and date_move_dt < date_from_dt:
-                        r['type_line'] = 'init'
-                        r['code'] = 'INIT'
-                        append_r = True
-
-                if append_r:
-                    new_list.append(r)
-
-        init_balance_lines = []
-        if type_ledger in ('general'):
-            init_lines_to_compact.append(self.do_query_unaffected_earnings(date_init_dt))
-        init_balance_lines.extend(self._generate_init_balance_lines(type_ledger, init_lines_to_compact, ))
-        compacted_line = self._generate_compacted_lines(type_ledger, compacted_line_to_compact)
-
-        if type_ledger == 'journal':
-            all_lines = new_list
-        else:
-            all_lines = init_balance_lines + new_list + compacted_line
-
-        for r in all_lines:
-            if r[group_by_field] in lines_group_by.keys():
-                lines_group_by[r[group_by_field]]['new_lines'].append(r)
-            else:
-                lines_group_by[r[group_by_field]] = {'new_lines': [r], }
-
-        # remove unused group_by
-        for group_by, value in lines_group_by.items():
-            if not value['new_lines']:
-                del lines_group_by[group_by]
-
-        open_debit = 0
-        open_credit = 0
-        # compute sum by group_by
-        # compute sum by account
-        for group_by, value in lines_group_by.items():
-            balance = 0.0
-            sum_debit = 0.0
-            sum_credit = 0.0
-
-            data_aged = {}
-            if type_ledger == 'aged':
-                data_aged = {'not_due': False, '0-30': False, '30-60': False, '60-90': False, '90-120': False, 'older': False, 'total': False}
-
-            for r in value['new_lines']:
-                balance += r['debit'] - r['credit']
-                if float_is_zero(balance, precision_rounding=rounding):
-                    balance = 0.0
-                r['progress'] = balance
-
-                if type_ledger == 'aged':
-                    data_aged = self.get_data_aged_sum(data_aged, r, rounding)
-
-                sum_debit += r['debit']
-                sum_credit += r['credit']
-                open_debit += r['debit']
-                open_credit += r['credit']
-
-                r['s_debit'] = False if float_is_zero(r['debit'], precision_rounding=rounding) else True
-                r['s_credit'] = False if float_is_zero(r['credit'], precision_rounding=rounding) else True
-
-                line_account[r['account_id']]['debit'] += r['debit']
-                line_account[r['account_id']]['credit'] += r['credit']
-                line_account[r['account_id']]['active'] = True
-                line_account[r['account_id']]['balance'] += r['debit'] - r['credit']
-
-            balance = sum_debit - sum_credit
-            if float_is_zero(balance, precision_rounding=rounding):
-                balance = 0.0
-            if data['sum_group_by_bottom']:
-                lines_group_by[group_by]['new_lines'].append(self._generate_total(sum_debit, sum_credit, balance, data_aged))
-
-            lines_group_by[group_by]['s_debit'] = False if float_is_zero(sum_debit, precision_rounding=rounding) else True
-            lines_group_by[group_by]['s_credit'] = False if float_is_zero(sum_credit, precision_rounding=rounding) else True
-            lines_group_by[group_by]['debit - credit'] = balance
-            lines_group_by[group_by]['debit'] = sum_debit
-            lines_group_by[group_by]['credit'] = sum_credit
-            lines_group_by[group_by]['code'], lines_group_by[group_by]['name'], lines_group_by[group_by]['displayed_name'] = self._get_sum_name(group_by_obj.browse(group_by))
-
-            lines_group_by[group_by].update(data_aged)
-
-            group_by_ids.append(group_by)
-
-        # remove unused account
-        for key, value in line_account.items():
-            if value['active'] is False:
-                del line_account[key]
-
-        # compute open balance
-        open_balance = open_debit - open_credit
-        if float_is_zero(open_balance, precision_rounding=rounding):
-            open_balance = 0.0
-
-        open_data = {'debit': open_debit,
-                     'credit': open_credit,
-                     'balance': open_balance, }
-
-        group_by_ids = group_by_obj.browse(group_by_ids)
-        group_by_ids = sorted(group_by_ids, key=lambda x: x[D_LEDGER[type_ledger]['short']])
-        group_by_ids = {'model': D_LEDGER[type_ledger]['model'],
-                        'ids': [x.id for x in group_by_ids]}
-
-        return lines_group_by, line_account, group_by_ids, open_data
-
-    def get_data_aged_sum(self, data_aged, r, rounding):
-        total = 0.0
-        for value in ['not_due', '0-30', '30-60', '60-90', '90-120', 'older', 'total']:
-            if data_aged[value]:
-                data_aged[value] += r[value]
-            else:
-                data_aged[value] = r[value]
-        if float_is_zero(data_aged['total'], precision_rounding=rounding):
-            data_aged['total'] = False
-        return data_aged
-
-    def get_aged_balance(self, r, rounding):
-        date_maturity = datetime.strptime(r['date_maturity'], DEFAULT_SERVER_DATE_FORMAT)
-        date_to = datetime.strptime(self.date_to, DEFAULT_SERVER_DATE_FORMAT)
-        data_aged = {'not_due': False, '0-30': False, '30-60': False, '60-90': False, '90-120': False, 'older': False, 'total': False}
-        balance = r['debit'] - r['credit']
-        if float_is_zero(balance, precision_rounding=rounding):
-            balance = 0.0
-        else:
-            data_aged['total'] = balance
-        if date_maturity < (date_to - timedelta(days=120)):
-            data_aged['older'] = balance
-        elif date_maturity < (date_to - timedelta(days=90)):
-            data_aged['90-120'] = balance
-        elif date_maturity < (date_to - timedelta(days=60)):
-            data_aged['60-90'] = balance
-        elif date_maturity < (date_to - timedelta(days=30)):
-            data_aged['30-60'] = balance
-        elif date_maturity < (date_to):
-            data_aged['0-30'] = balance
-        else:
-            data_aged['not_due'] = balance
-        return data_aged
-
-    def _get_sum_name(self, group_by):
-        name = ''
-        code = ''
-        display_name = ''
-        if self.type_ledger in ('general', 'journal', 'open'):
-            display_name = "%s - %s" % (group_by.code, group_by.name)
-            code = group_by.code
-            name = group_by.name
-        elif self.type_ledger in ('partner', 'aged',):
-            if group_by.ref:
-                display_name = '%s - %s' % (group_by.ref, group_by.name)
-                code = group_by.ref
-                name = group_by.name
-            else:
-                display_name = group_by.name
-                code = group_by.name
-                name = ''
-        return code, name, display_name
-
-    def _generate_sql(self, data, accounts, reconcile_clause_data, date_to, date_from):
-        params = [self.target_move, self.env.user.company_id.id, tuple(accounts.ids), tuple(self.journal_ids.ids)]
-
-        date_clause = ''
-        if date_to:
-            date_clause += ' AND account_move_line.date <= %s '
-            params.append(date_to)
-        if date_from and self.type_ledger == 'journal':
-            date_clause += ' AND account_move_line.date >= %s '
-            params.append(date_from)
-
-        partner_clause = ''
-        if self.partner_ids:
-            partner_clause = 'AND account_move_line.partner_id IN %s'
-            params.append(tuple(self.partner_ids.ids))
-        elif self.type_ledger in ('partner', 'aged',):
-            partner_clause = ' AND account_move_line.partner_id IS NOT NULL '
-
-        reconcile_clause = ''
-        if reconcile_clause_data:
-            reconcile_clause = reconcile_clause_data['query']
-            if reconcile_clause_data['params']:
-                params.append(reconcile_clause_data['params'])
-
-        query = """
-            SELECT
-                account_move_line.id,
-                account_move_line.date,
-                account_move_line.date_maturity,
-                j.code,
-                acc.code AS a_code,
-                acc.name AS a_name,
-                acc_type.type AS a_type,
-                acc_type.include_initial_balance AS include_initial_balance,
-                acc.compacted AS compacted,
-                account_move_line.ref,
-                m.name AS move_name,
-                account_move_line.name,
-                account_move_line.debit,
-                account_move_line.credit,
-                account_move_line.amount_currency,
-                account_move_line.currency_id,
-                c.symbol AS currency_code,
-                afr.name AS matching_number,
-                afr.id AS matching_number_id,
-                account_move_line.partner_id,
-                account_move_line.account_id,
-                account_move_line.journal_id,
-                prt.name AS partner_name
-            FROM
-                account_move AS account_move_line__move_id, account_move_line
-                LEFT JOIN account_journal j ON (account_move_line.journal_id = j.id)
-                LEFT JOIN account_account acc ON (account_move_line.account_id = acc.id)
-                LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
-                LEFT JOIN res_currency c ON (account_move_line.currency_id = c.id)
-                LEFT JOIN account_move m ON (account_move_line.move_id = m.id)
-                LEFT JOIN account_full_reconcile afr ON (account_move_line.full_reconcile_id = afr.id)
-                LEFT JOIN res_partner prt ON (account_move_line.partner_id = prt.id)
-            WHERE
-                m.state = %s
-                AND account_move_line.company_id = %s
-                AND account_move_line.move_id=account_move_line__move_id.id
-                AND account_move_line.account_id IN %s
-                AND account_move_line.journal_id IN %s""" + date_clause + partner_clause + reconcile_clause + """
-                ORDER BY account_move_line.date, move_name, a_code, account_move_line.ref"""
+        params = [
+            # SELECT
+            self.report_id.id,
+            self.env.uid,
+            unaffected_earnings_account.id,
+            date_from_fiscal,
+            self.init_balance_history,
+            self.init_balance_history,
+            self.company_currency_id.id,
+            report_object_id.id,
+            # WHERE
+            ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            company.id,
+            self.report_id.date_from, ]
 
         self.env.cr.execute(query, tuple(params))
-        return self.env.cr.dictfetchall()
 
-    def _generate_account_dict(self, accounts):
-        line_account = {}
-        for account in accounts:
-            line_account[account.id] = {
-                'debit': 0.0,
-                'credit': 0.0,
-                'balance': 0.0,
-                'code': account.code,
-                'name': account.name,
-                'active': False,
-            }
-        return line_account
+    def _sql_init_balance(self):
+        company = self.company_id
+        # initial balance partner
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, account_id, partner_id, group_by_key, type, type_view, date, debit, credit, balance, cumul_balance, company_currency_id, report_object_id)
 
-    def _generate_init_balance_lines(self, type_ledger, init_lines_to_compact):
-        group_by_field = D_LEDGER[type_ledger]['group_by']
-        rounding = self.env.user.company_id.currency_id.rounding or 0.01
-        init_lines = {}
+        WITH matching_in_futur_before_init (id) AS
+        (
+        SELECT DISTINCT
+            afr.id as id
+        FROM
+            account_full_reconcile afr
+        INNER JOIN account_move_line aml ON aml.full_reconcile_id=afr.id
+        WHERE
+            aml.company_id = %s
+            AND aml.date >= %s
+        )
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            MIN(aml.account_id),
+            CASE WHEN %s = 'partner' THEN MIN(aml.partner_id) ELSE NULL END,
+            (CASE
+                WHEN %s = 'account' THEN '-' || aml.account_id
+                ELSE aml.partner_id || '-' || aml.account_id
+            END) AS group_by_key,
+            '0_init' AS type,
+            'init' AS type_view,
+            %s AS date,
+            CASE WHEN %s THEN COALESCE(SUM(aml.debit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) <= 0 THEN 0 ELSE COALESCE(SUM(aml.balance), 0) END END AS debit,
+            CASE WHEN %s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(-SUM(aml.balance), 0) END END AS credit,
+            COALESCE(SUM(aml.balance), 0) AS balance,
+            COALESCE(SUM(aml.balance), 0) AS cumul_balance,
+            %s AS company_currency_id,
+            MIN(ro.id) AS report_object_id
+        FROM
+            account_report_standard_ledger_report_object ro
+            INNER JOIN account_move_line aml ON (CASE WHEN %s = 'account' THEN aml.account_id = ro.object_id ELSE aml.partner_id = ro.object_id END)
+            LEFT JOIN account_account acc ON (aml.account_id = acc.id)
+            LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
+            LEFT JOIN account_move m ON (aml.move_id = m.id)
+            LEFT JOIN matching_in_futur_before_init mif ON (aml.full_reconcile_id = mif.id)
+       	WHERE
+            m.state IN %s
+            AND ro.report_id = %s
+            AND aml.company_id = %s
+            AND aml.date < %s
+            AND acc_type.include_initial_balance = TRUE
+            AND aml.journal_id IN %s
+            AND aml.account_id IN %s
+            AND (%s in ('account', 'journal') OR aml.partner_id IN %s)
+            AND ((%s AND acc.compacted = TRUE) OR acc.type_third_parties = 'no' OR (aml.full_reconcile_id IS NOT NULL AND mif.id IS NULL))
+        GROUP BY
+            group_by_key
+        """
 
-        for r in init_lines_to_compact:
-            key = (r['account_id'], r[group_by_field])
-            reduce_balance = r['reduce_balance'] and not self.init_balance_history
-            if key in init_lines.keys():
-                init_lines[key]['debit'] += r['debit']
-                init_lines[key]['credit'] += r['credit']
-            else:
-                init_lines[key] = {'debit': r['debit'],
-                                   'credit': r['credit'],
-                                   'reduce_balance': reduce_balance,
-                                   'account_id': r['account_id'],
-                                   group_by_field: r[group_by_field],
-                                   'a_code': r['a_code'],
-                                   'a_name': r['a_name'],
-                                   'a_type': r['a_type'], }
-        init = []
-        for key, value in init_lines.items():
-            init_debit = value['debit']
-            init_credit = value['credit']
-            balance = init_debit - init_credit
-            balance = 0.0 if float_is_zero(balance, precision_rounding=rounding) else balance
+        params = [
+            # matching_in_futur
+            company.id,
+            self.report_id.date_from,
 
-            if value['reduce_balance']:
-                if balance > 0:
-                    init_debit = abs(balance)
-                    init_credit = 0
-                elif balance < 0:
-                    init_credit = abs(balance)
-                    init_debit = 0
-                elif balance == 0:
-                    init_debit = 0
-                    init_credit = 0
+            # init_account_table
+            # SELECT
+            self.report_id.id,
+            self.env.uid,
+            self.type, self.type,
+            self.report_id.date_from,
+            self.init_balance_history,
+            self.init_balance_history,
+            self.company_currency_id.id,
+            # FROM
+            self.type,
+            # WHERE
+            ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            self.report_id.id,
+            company.id,
+            self.report_id.date_from,
+            tuple(self.journal_ids.ids) if self.journal_ids else (None,),
+            tuple(self.account_ids.ids) if self.account_ids else (None,),
+            self.type,
+            tuple(self.partner_ids.ids) if self.partner_ids else (None,),
+            self.compact_account
+        ]
 
-            if not float_is_zero(init_debit, precision_rounding=rounding) or not float_is_zero(init_credit, precision_rounding=rounding):
-                init.append({'date': 'Initial balance',
-                             'date_maturity': '',
-                             'debit': init_debit,
-                             'credit': init_credit,
-                             'code': 'INIT',
-                             'a_code': value['a_code'],
-                             'a_name': value['a_name'],
-                             'move_name': '',
-                             'account_id': value['account_id'],
-                             group_by_field: value[group_by_field],
-                             'displayed_name': '',
-                             'partner_name': '',
-                             'progress': balance,
-                             'amount_currency': 0.0,
-                             'matching_number': '',
-                             'type_line': 'init'})
-        return init
+        self.env.cr.execute(query, tuple(params))
 
-    def _generate_compacted_lines(self, type_ledger, compacted_line_to_compact):
-        group_by_field = D_LEDGER[type_ledger]['group_by']
-        rounding = self.env.user.company_id.currency_id.rounding or 0.01
-        compacted_lines = {}
-        for r in compacted_line_to_compact:
-            key = r['account_id']
-            if key in compacted_lines.keys():
-                compacted_lines[key]['debit'] += r['debit']
-                compacted_lines[key]['credit'] += r['credit']
-            else:
-                compacted_lines[key] = {'debit': r['debit'],
-                                        'credit': r['credit'],
-                                        'account_id': r['account_id'],
-                                        group_by_field: r[group_by_field],
-                                        'a_code': r['a_code'],
-                                        'a_name': r['a_name'],
-                                        'a_type': r['a_type'], }
-        centra = []
-        for key, value in compacted_lines.items():
-            init_debit = value['debit']
-            init_credit = value['credit']
-            balance = init_debit - init_credit
-            if float_is_zero(balance, precision_rounding=rounding):
-                balance = 0.0
+    def _sql_lines(self):
+        # lines_table
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, account_id, type, type_view, journal_id, partner_id, move_id, move_line_id, date, date_maturity, debit, credit, balance, full_reconcile_id, reconciled, report_object_id, cumul_balance, current, age_30_days, age_60_days, age_90_days, age_120_days, older, company_currency_id)
 
-            if not float_is_zero(init_debit, precision_rounding=rounding) or not float_is_zero(init_credit, precision_rounding=rounding):
-                centra.append({'date': _('Compacted'),
-                               'date_maturity': '',
-                               'debit': init_debit,
-                               'credit': init_credit,
-                               'code': _('COMP'),
-                               'a_code': value['a_code'],
-                               'a_name': value['a_name'],
-                               'move_name': '',
-                               'account_id': value['account_id'],
-                               group_by_field: value[group_by_field],
-                               'displayed_name': '',
-                               'partner_name': '',
-                               'progress': balance,
-                               'amount_currency': 0.0,
-                               'matching_number': '',
-                               'type_line': 'normal'})
-        return centra
+        WITH matching_in_futur_before_init (id) AS
+        (
+            SELECT DISTINCT
+                afr.id AS id
+            FROM
+                account_full_reconcile afr
+            INNER JOIN account_move_line aml ON aml.full_reconcile_id=afr.id
+            WHERE
+                aml.company_id = %s
+                AND aml.date >= %s
+        ),
 
-    def _generate_total(self, sum_debit, sum_credit, balance, data_aged):
-        rounding = self.env.user.company_id.currency_id.rounding or 0.01
-        data = {'date': _('Total'),
-                'date_maturity': '',
-                'debit': sum_debit,
-                'credit': sum_credit,
-                's_debit': False if float_is_zero(sum_debit, precision_rounding=rounding) else True,
-                's_credit': False if float_is_zero(sum_credit, precision_rounding=rounding) else True,
-                'code': '',
-                'move_name': '',
-                'a_code': '',
-                'account_id': '',
-                'displayed_name': '',
-                'partner_name': '',
-                'progress': balance,
-                'amount_currency': 0.0,
-                'matching_number': '',
-                'type_line': 'total', }
-        data.update(data_aged)
-        return data
+        matching_in_futur_after_date_to (id) AS
+        (
+            SELECT DISTINCT
+                afr.id AS id
+            FROM
+                account_full_reconcile afr
+                INNER JOIN account_move_line aml ON aml.full_reconcile_id = afr.id
+            WHERE
+                aml.company_id = %s
+                AND aml.date > %s
+        ),
+
+        initial_balance (id, balance) AS
+        (
+            SELECT
+                MIN(report_object_id) AS id,
+                COALESCE(SUM(balance), 0) AS balance
+            FROM
+                account_report_standard_ledger_line
+            WHERE
+                report_id = %s
+                AND type = '0_init'
+            GROUP BY
+                report_object_id
+        ),
+
+        date_range AS
+            (
+                SELECT
+                    %s AS date_current,
+                    DATE %s - INTEGER '30' AS date_less_30_days,
+                    DATE %s - INTEGER '60' AS date_less_60_days,
+                    DATE %s - INTEGER '90' AS date_less_90_days,
+                    DATE %s - INTEGER '120' AS date_less_120_days,
+                    DATE %s - INTEGER '150' AS date_older
+            )
+
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            aml.account_id,
+            CASE WHEN aml.date >= %s THEN '2_line' ELSE '1_init_line' END AS type,
+            CASE WHEN aml.date >= %s THEN 'normal' ELSE 'init' END AS type_view,
+            aml.journal_id,
+            aml.partner_id,
+            aml.move_id,
+            aml.id,
+            aml.date,
+            aml.date_maturity,
+            aml.debit,
+            aml.credit,
+            aml.balance,
+            aml.full_reconcile_id,
+            CASE WHEN aml.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL THEN TRUE ELSE FALSE END AS reconciled,
+            ro.id AS report_object_id,
+            CASE
+                WHEN %s = 'account' THEN COALESCE(init.balance, 0) + (SUM(aml.balance) OVER (PARTITION BY aml.account_id ORDER BY aml.account_id, aml.date, aml.id))
+                WHEN %s = 'partner' THEN COALESCE(init.balance, 0) + (SUM(aml.balance) OVER (PARTITION BY aml.partner_id ORDER BY aml.partner_id, aml.date, aml.id))
+                ELSE SUM(aml.balance) OVER (PARTITION BY aml.journal_id ORDER BY aml.journal_id, aml.date, aml.id)
+            END AS cumul_balance,
+            CASE WHEN aml.date_maturity > date_range.date_less_30_days THEN aml.balance END AS current,
+            CASE WHEN aml.date_maturity > date_range.date_less_60_days AND aml.date_maturity <= date_range.date_less_30_days THEN aml.balance END AS age_30_days,
+            CASE WHEN aml.date_maturity > date_range.date_less_90_days AND aml.date_maturity <= date_range.date_less_60_days THEN aml.balance END AS age_60_days,
+            CASE WHEN aml.date_maturity > date_range.date_less_120_days AND aml.date_maturity <= date_range.date_less_90_days THEN aml.balance END AS age_90_days,
+            CASE WHEN aml.date_maturity > date_range.date_older AND aml.date_maturity <= date_range.date_less_120_days THEN aml.balance END AS age_120_days,
+            CASE WHEN aml.date_maturity <= date_range.date_older THEN aml.balance END AS older,
+            %s AS company_currency_id
+        FROM
+            date_range,
+            account_report_standard_ledger_report_object ro
+            INNER JOIN account_move_line aml ON (
+                CASE
+                    WHEN %s = 'account' THEN aml.account_id = ro.object_id
+                    WHEN %s = 'partner' THEN aml.partner_id = ro.object_id
+                    ELSE aml.journal_id = ro.object_id
+                END)
+            LEFT JOIN account_journal j ON (aml.journal_id = j.id)
+            LEFT JOIN account_account acc ON (aml.account_id = acc.id)
+            LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
+            LEFT JOIN account_move m ON (aml.move_id = m.id)
+            LEFT JOIN matching_in_futur_before_init mif ON (aml.full_reconcile_id = mif.id)
+            LEFT JOIN matching_in_futur_after_date_to mifad ON (aml.full_reconcile_id = mifad.id)
+            LEFT JOIN initial_balance init ON (ro.id = init.id)
+        WHERE
+            m.state IN %s
+            AND ro.report_id = %s
+            AND aml.company_id = %s
+            AND (CASE
+                    WHEN %s = 'journal' THEN aml.date >= %s
+                    WHEN aml.date >= %s THEN %s != 'open'
+                    ELSE acc.type_third_parties IN ('supplier', 'customer') AND (aml.full_reconcile_id IS NULL OR mif.id IS NOT NULL)
+                END)
+            AND aml.date <= %s
+            AND aml.journal_id IN %s
+            AND aml.account_id IN %s
+            AND (%s IN ('account','journal') OR aml.partner_id IN %s)
+            AND NOT (%s AND acc.compacted = TRUE)
+            AND (%s OR NOT (aml.full_reconcile_id is NOT NULL AND NOT mifad.id IS NOT NULL))
+        ORDER BY
+            aml.date, aml.id
+        """
+        params = [
+            # matching_in_futur init
+            self.company_id.id,
+
+            self.report_id.date_from,
+
+            # matching_in_futur date_to
+            self.company_id.id,
+            self.report_id.date_to,
+
+            # initial_balance
+            self.report_id.id,
+
+            # date_range
+            self.report_id.date_to, self.report_id.date_to, self.report_id.date_to, self.report_id.date_to, self.report_id.date_to, self.report_id.date_to,
+
+            # lines_table
+            # SELECT
+            self.report_id.id,
+            self.env.uid,
+            self.report_id.date_from,
+            self.report_id.date_from,
+            self.type, self.type,
+            self.company_currency_id.id,
+
+            # FROM
+            self.type, self.type,
+
+            # WHERE
+            ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            self.report_id.id,
+            self.company_id.id,
+
+            self.type, self.report_id.date_from,
+            self.report_id.date_from, self.type_ledger,
+            self.report_id.date_to,
+            tuple(self.journal_ids.ids) if self.journal_ids else (None,),
+            tuple(self.account_ids.ids) if self.account_ids else (None,),
+            self.type,
+            tuple(self.partner_ids.ids) if self.partner_ids else (None,),
+            self.compact_account,
+            self.reconciled,
+        ]
+
+        self.env.cr.execute(query, tuple(params))
+
+    def _sql_lines_compacted(self):
+        # lines_table
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, account_id, type, type_view, date, debit, credit, balance, cumul_balance, company_currency_id, report_object_id)
+
+        WITH initial_balance (id, balance) AS
+        (
+        SELECT
+            MIN(report_object_id) AS id,
+            COALESCE(SUM(balance), 0) AS balance
+        FROM
+            account_report_standard_ledger_line
+        WHERE
+            report_id = %s
+            AND type = '0_init'
+        GROUP BY
+            report_object_id
+        )
+
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            MIN(aml.account_id) AS account_id,
+            '3_compact' AS type,
+            'normal' AS type_view,
+            %s AS date,
+            COALESCE(SUM(aml.debit), 0) AS debit,
+            COALESCE(SUM(aml.credit), 0) AS credit,
+            COALESCE(SUM(aml.balance), 0) AS balance,
+            COALESCE(MIN(init.balance), 0) + COALESCE(SUM(aml.balance), 0) AS cumul_balance,
+            %s AS company_currency_id,
+            MIN(ro.id) AS report_object_id
+        FROM
+            account_report_standard_ledger_report_object ro
+            INNER JOIN account_move_line aml ON (CASE WHEN %s THEN aml.account_id = ro.object_id ELSE aml.partner_id = ro.object_id END)
+            LEFT JOIN account_journal j ON (aml.journal_id = j.id)
+            LEFT JOIN account_account acc ON (aml.account_id = acc.id)
+            LEFT JOIN account_account_type acc_type ON (acc.user_type_id = acc_type.id)
+            LEFT JOIN account_move m ON (aml.move_id = m.id)
+            LEFT JOIN initial_balance init ON (ro.id = init.id)
+        WHERE
+            m.state IN %s
+            AND ro.report_id = %s
+            AND aml.company_id = %s
+            AND aml.date >= %s
+            AND aml.date <= %s
+            AND aml.journal_id IN %s
+            AND aml.account_id IN %s
+            AND (%s AND acc.compacted = TRUE)
+        GROUP BY
+            aml.account_id
+        """
+
+        params = [
+            # initial_balance
+            self.report_id.id,
+
+            # SELECT
+            self.report_id.id,
+            self.env.uid,
+            self.report_id.date_from,
+            self.company_currency_id.id,
+            # FROM
+            True if self.type_ledger in ('general', 'open', 'journal') else False,
+            # WHERE
+            ('posted',) if self.target_move == 'posted' else ('posted', 'draft',),
+            self.report_id.id,
+            self.company_id.id,
+            self.report_id.date_from,
+            self.report_id.date_to,
+            tuple(self.journal_ids.ids) if self.journal_ids else (None,),
+            tuple(self.account_ids.ids) if self.account_ids else (None,),
+            self.compact_account,
+        ]
+
+        self.env.cr.execute(query, tuple(params))
+
+    def _sql_total(self):
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, account_id, partner_id, journal_id, type, type_view, date, debit, credit, balance, cumul_balance, report_object_id, current, age_30_days, age_60_days, age_90_days, age_120_days, older, company_currency_id)
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            CASE WHEN %s = 'account' THEN MIN(account_id) ELSE NULL END AS account_id,
+            CASE WHEN %s = 'partner' THEN MIN(partner_id) ELSE NULL END AS partner_id,
+            CASE WHEN %s = 'journal' THEN MIN(journal_id) ELSE NULL END AS journal_id,
+            '4_total' AS type,
+            'total' AS type_view,
+            %s AS date,
+            COALESCE(SUM(debit), 0) AS debit,
+            COALESCE(SUM(credit), 0) AS credit,
+            COALESCE(SUM(balance), 0) AS balance,
+            COALESCE(SUM(balance), 0) AS cumul_balance,
+            MIN(report_object_id) AS report_object_id,
+            COALESCE(SUM(current), 0) AS current,
+            COALESCE(SUM(age_30_days), 0) AS age_30_days,
+            COALESCE(SUM(age_60_days), 0) AS age_60_days,
+            COALESCE(SUM(age_90_days), 0) AS age_90_days,
+            COALESCE(SUM(age_120_days), 0) AS age_120_days,
+            COALESCE(SUM(older), 0) AS older,
+            %s AS company_currency_id
+        FROM
+            account_report_standard_ledger_line
+        WHERE
+            report_id = %s
+            AND report_object_id IS NOT NULL
+        GROUP BY
+            report_object_id;
+        """
+        params = [
+            # SELECT
+            self.report_id.id,
+            self.env.uid,
+            self.type, self.type, self.type,
+            self.report_id.date_from,
+            self.company_currency_id.id,
+
+            # WHERE
+            self.report_id.id,
+
+        ]
+        self.env.cr.execute(query, tuple(params))
+
+    def _sql_super_total(self):
+        query = """
+        INSERT INTO account_report_standard_ledger_line
+            (report_id, create_uid, create_date, type, type_view, date, debit, credit, balance, cumul_balance, current, age_30_days, age_60_days, age_90_days, age_120_days, older, company_currency_id)
+        SELECT
+            %s AS report_id,
+            %s AS create_uid,
+            NOW() AS create_date,
+            '5_super_total' AS type,
+            'total' AS type_view,
+            %s AS date,
+            COALESCE(SUM(debit), 0) AS debit,
+            COALESCE(SUM(credit), 0) AS credit,
+            COALESCE(SUM(balance), 0) AS balance,
+            COALESCE(SUM(balance), 0) AS cumul_balance,
+            COALESCE(SUM(current), 0) AS current,
+            COALESCE(SUM(age_30_days), 0) AS age_30_days,
+            COALESCE(SUM(age_60_days), 0) AS age_60_days,
+            COALESCE(SUM(age_90_days), 0) AS age_90_days,
+            COALESCE(SUM(age_120_days), 0) AS age_120_days,
+            COALESCE(SUM(older), 0) AS older,
+            %s AS company_currency_id
+        FROM
+            account_report_standard_ledger_line
+        WHERE
+            report_id = %s
+            AND type = '4_total'
+        """
+        params = [
+            # SELECT
+            self.report_id.id,
+            self.env.uid,
+            self.report_id.date_from,
+            self.company_currency_id.id,
+            self.report_id.id,
+        ]
+        self.env.cr.execute(query, tuple(params))
 
     def _search_account(self):
         type_ledger = self.type_ledger
-        domain = [('deprecated', '=', False), ]
+        domain = [('deprecated', '=', False), ('company_id', '=', self.company_id.id)]
         if type_ledger in ('partner', 'aged',):
             result_selection = self.result_selection
             if result_selection == 'supplier':
-                acc_type = ['payable']
+                acc_type = ('supplier',)
             elif result_selection == 'customer':
-                acc_type = ['receivable']
+                acc_type = ('customer',)
             else:
-                acc_type = ['payable', 'receivable']
-            domain.append(('internal_type', 'in', acc_type))
+                acc_type = ('supplier', 'customer',)
+            domain.append(('type_third_parties', 'in', acc_type))
 
         account_in_ex_clude = self.account_in_ex_clude.ids
         acc_methode = self.account_methode
@@ -748,55 +859,76 @@ class AccountStandardLedger(models.TransientModel):
                 domain.append(('id', 'not in', account_in_ex_clude))
         return self.env['account.account'].search(domain)
 
-    def _compute_reconcile_clause(self, date_init):
-        reconcile_clause = {}
-        list_match_in_futur = []
-        list_match_after_init = []
-
-        if not self.reconciled:
-            reconcile_clause = {'query': ' AND account_move_line.reconciled = false ', 'params': False, }
-
-        # when an entrie a matching number and this matching number is linked with
-        # entries witch the date is gretter than date_to, then
-        # the entrie is considered like unreconciled.
-        if self.rem_futur_reconciled and self.date_to:
-            date_to = datetime.strptime(self.date_to, DEFAULT_SERVER_DATE_FORMAT)
-
-            def sql_query(params):
-                query = """
-                SELECT DISTINCT afr.id
-                FROM account_full_reconcile afr
-                INNER JOIN account_move_line aml ON aml.full_reconcile_id=afr.id
-                AND aml.date > %s
-                """
-                self.env.cr.execute(query, params)
-                return self.env.cr.dictfetchall()
-
-            for r in sql_query([date_to]):
-                list_match_in_futur.append(r['id'])
-            if date_init:
-                for r in sql_query([date_init - timedelta(days=1)]):
-                    list_match_after_init.append(r['id'])
-
-            if list_match_in_futur and not self.reconciled:
-                reconcile_clause = {'query': ' AND (account_move_line.full_reconcile_id IS NULL OR account_move_line.full_reconcile_id IN %s ) ',
-                                    'params': tuple(list_match_in_futur), }
-
-        return reconcile_clause, list_match_in_futur, list_match_after_init
+    def _search_partner(self):
+        if self.type_ledger in ('partner', 'aged'):
+            if self.partner_select_ids:
+                return self.partner_select_ids
+            return self.env['res.partner'].search([])
+        return False
 
     def _get_name_report(self):
         report_name = D_LEDGER[self.type_ledger]['name']
         if self.summary:
             report_name += _(' Balance')
-        self.report_name = report_name
+        return report_name
 
-    def _generate_date_init(self, date_from_dt):
-        if date_from_dt:
-            last_day = self.env.user.company_id.fiscalyear_last_day or 31
-            last_month = self.env.user.company_id.fiscalyear_last_month or 12
-            if date_from_dt.month >= last_month and date_from_dt.day >= last_day:
-                year = date_from_dt.year
-            else:
-                year = date_from_dt.year - 1
-            return datetime(year=year, month=last_month, day=last_day) + timedelta(days=1)
-        return False
+    def sql_get_line_for_report(self, type_l, report_object=None):
+        query = """SELECT
+                    aml.report_object_id AS report_object_id,
+                    CASE
+                        WHEN %s = 'account' THEN acc.code
+                        WHEN %s = 'journal' THEN acj.code
+                        ELSE rep.name
+                    END AS code,
+                    CASE
+                        WHEN %s = 'account' THEN acc.name
+                        WHEN %s = 'journal' THEN acj.name
+                        ELSE ''
+                    END AS name,
+                    acj.code AS j_code,
+                    acc.code AS a_code,
+                    acc.name AS a_name,
+                    aml.current AS current,
+                    aml.age_30_days AS age_30_days,
+                    aml.age_60_days AS age_60_days,
+                    aml.age_90_days AS age_90_days,
+                    aml.age_120_days AS age_120_days,
+                    aml.older AS older,
+                    aml.credit AS credit,
+                    aml.debit AS debit,
+                    aml.cumul_balance AS cumul_balance,
+                    aml.balance AS balance,
+                    ml.name AS move_name,
+                    ml.ref AS displayed_name,
+                    rep.name AS partner_name,
+                    aml.date AS date,
+                    aml.date_maturity AS date_maturity,
+                    CASE
+                        WHEN aml.reconciled = TRUE AND aml.full_reconcile_id IS NOT NULL THEN afr.name
+                        ELSE '*'
+                    END AS matching_number
+
+                FROM
+                    account_report_standard_ledger_line aml
+                    LEFT JOIN account_account acc ON (acc.id = aml.account_id)
+                    LEFT JOIN account_journal acj ON (acj.id = aml.journal_id)
+                    LEFT JOIN res_partner rep ON (rep.id = aml.partner_id)
+                    LEFT JOIN account_move ml ON (ml.id = aml.move_id)
+                    LEFT JOIN account_full_reconcile afr ON (aml.full_reconcile_id = afr.id)
+                WHERE
+                    aml.report_id = %s
+                    AND (%s OR aml.report_object_id = %s)
+                    AND aml.type IN %s
+                ORDER BY
+                    aml.id
+                """
+        params = [
+            self.type, self.type, self.type, self.type,
+            self.report_id.id,
+            True if report_object == None else False,
+            report_object,
+            type_l
+        ]
+
+        self.env.cr.execute(query, tuple(params))
+        return self.env.cr.dictfetchall()

@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
 
-import report_account_standard_excel
+import .report_account_standard_excel

@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import calendar
-import time
 
 import odoo.addons.decimal_precision as dp
 from datetime import datetime, timedelta
 from odoo import api, models, fields, _
-from odoo.tools import float_is_zero
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT
 
 
@@ -424,7 +422,7 @@ class AccountStandardLedger(models.TransientModel):
             # HAVING
             self.init_balance_history,
             self.company_currency_id.rounding, self.company_currency_id.rounding, self.company_currency_id.rounding, self.company_currency_id.rounding,
-            ]
+        ]
 
         self.env.cr.execute(query, tuple(params))
 
@@ -947,7 +945,7 @@ class AccountStandardLedger(models.TransientModel):
         params = [
             self.type, self.type, self.type, self.type,
             self.report_id.id,
-            True if report_object == None else False,
+            True if report_object is None else False,
             report_object,
             type_l
         ]

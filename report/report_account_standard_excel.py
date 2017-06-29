@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from odoo.addons.report_xlsx.report.report_xlsx import ReportXlsx
-from odoo.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT
+from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 from odoo import _
 
 
@@ -221,7 +220,6 @@ class AccountStandardExcel(ReportXlsx):
                             lines_obj.append(line)
                     if lines_obj:
                         row += 1
-                        save_top_row = row
                         sheet.write(row, 0, obj.partner_id.name, left)  # obj.partner_id.name
                         sheet.write(row, 1, '', top)
                         sheet.write(row, 2, '', top)
@@ -416,7 +414,6 @@ class AccountStandardExcel(ReportXlsx):
                             lines_obj.append(line)
                     if lines_obj:
                         row += 1
-                        save_top_row = row
                         name_view = ''
                         if wizard.type == 'account':
                             name_view = obj.account_id.display_name

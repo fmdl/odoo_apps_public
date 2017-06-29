@@ -29,6 +29,7 @@ Matching Number
 Installation
 ============
 Just install the module
+Go to Accounting/Adviser/Chart of account : set the 'Thrid Parties' field on supplier and custommer accounts.
 
 Usage
 =====

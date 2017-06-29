@@ -10,7 +10,7 @@
     'depends': ['account', 'report_xlsx'],
     'data': [
         'data/report_paperformat.xml',
-        'data/account_report.xml',
+        'data/data_account_standard_report.xml',
         'report/report_account_standard_report.xml',
         'views/account_view.xml',
         'views/account_standard.xml',

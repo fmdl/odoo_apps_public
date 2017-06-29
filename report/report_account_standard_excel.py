@@ -25,6 +25,12 @@ class AccountStandardExcel(ReportXlsx):
 
         report = wizard.report_id
 
+        def _get_data_float(data):
+            if data == None or data == False:
+                return 0.0
+            else:
+                return wizard.company_currency_id.round(data) + 0.0
+
         def get_date_format(date):
             if date:
                 date = datetime.strptime(date, DEFAULT_SERVER_DATE_FORMAT)
@@ -92,13 +98,13 @@ class AccountStandardExcel(ReportXlsx):
                         i += row
                         sheet.write(i, 0, line.get('code', ''))
                         sheet.write(i, 1, line.get('name', ''))
-                        sheet.write(i, 2, round(line.get('current', 0.0), rounding), currency_format)
-                        sheet.write(i, 3, round(line.get('age_30_days', 0.0), rounding), currency_format)
-                        sheet.write(i, 4, round(line.get('age_60_days', 0.0), rounding), currency_format)
-                        sheet.write(i, 5, round(line.get('age_90_days', 0.0), rounding), currency_format)
-                        sheet.write(i, 6, round(line.get('age_120_days', 0.0), rounding), currency_format)
-                        sheet.write(i, 7, round(line.get('older', 0.0), rounding), currency_format)
-                        sheet.write(i, 8, round(line.get('balance', 0.0), rounding), currency_format)
+                        sheet.write(i, 2, _get_data_float(line.get('current')), currency_format)
+                        sheet.write(i, 3, _get_data_float(line.get('age_30_days')), currency_format)
+                        sheet.write(i, 4, _get_data_float(line.get('age_60_days')), currency_format)
+                        sheet.write(i, 5, _get_data_float(line.get('age_90_days')), currency_format)
+                        sheet.write(i, 6, _get_data_float(line.get('age_120_days')), currency_format)
+                        sheet.write(i, 7, _get_data_float(line.get('older')), currency_format)
+                        sheet.write(i, 8, _get_data_float(line.get('balance')), currency_format)
                     row = i
 
                     for j, h in enumerate(head):
@@ -174,12 +180,6 @@ class AccountStandardExcel(ReportXlsx):
                     col.update(h['col'])
                     table.append(col)
 
-                def _get_data_float(data):
-                    if data == None:
-                        return 0.0
-                    else:
-                        return data
-
                 def _set_line(line):
                     sheet.write(i, 0, get_date_format(line.get('date', '')))
                     sheet.write(i, 1, line.get('j_code', ''))
@@ -189,13 +189,13 @@ class AccountStandardExcel(ReportXlsx):
                     sheet.write(i, 5, line.get('displayed_name', ''))
                     sheet.write(i, 6, line.get('partner_name', ''))
                     sheet.write(i, 7, get_date_format(line.get('date_maturity', '')))
-                    sheet.write(i, 8, round(_get_data_float(line.get('current', 0.0)), rounding), currency_format)
-                    sheet.write(i, 9, round(_get_data_float(line.get('age_30_days', 0.0)), rounding), currency_format)
-                    sheet.write(i, 10, round(_get_data_float(line.get('age_60_days', 0.0)), rounding), currency_format)
-                    sheet.write(i, 11, round(_get_data_float(line.get('age_90_days', 0.0)), rounding), currency_format)
-                    sheet.write(i, 12, round(_get_data_float(line.get('age_120_days', 0.0)), rounding), currency_format)
-                    sheet.write(i, 13, round(_get_data_float(line.get('older', 0.0)), rounding), currency_format)
-                    sheet.write(i, 14, round(_get_data_float(line.get('balance', 0.0)), rounding), currency_format)
+                    sheet.write(i, 8, _get_data_float(line.get('current')), currency_format)
+                    sheet.write(i, 9, _get_data_float(line.get('age_30_days')), currency_format)
+                    sheet.write(i, 10, _get_data_float(line.get('age_60_days')), currency_format)
+                    sheet.write(i, 11, _get_data_float(line.get('age_90_days')), currency_format)
+                    sheet.write(i, 12, _get_data_float(line.get('age_120_days')), currency_format)
+                    sheet.write(i, 13, _get_data_float(line.get('older')), currency_format)
+                    sheet.write(i, 14, _get_data_float(line.get('balance')), currency_format)
                     sheet.write(i, 15, line.get('matching_number', ''))
 
                 def _set_table(start_row, row):
@@ -380,7 +380,7 @@ class AccountStandardExcel(ReportXlsx):
                     table.append(col)
 
                 def _set_line(line):
-                    sheet.write(i, 0, get_date_format(line.get('date', '')))
+                    sheet.write(i, 0, get_date_format(line.get('date', '')) if line.get('type_view') != 'init' else 'INIT')
                     sheet.write(i, 1, line.get('j_code', ''))
                     sheet.write(i, 2, line.get('a_code', ''))
                     sheet.write(i, 3, line.get('a_name', ''))
@@ -388,9 +388,9 @@ class AccountStandardExcel(ReportXlsx):
                     sheet.write(i, 5, line.get('displayed_name', ''))
                     sheet.write(i, 6, line.get('partner_name', ''))
                     sheet.write(i, 7, get_date_format(line.get('date_maturity', '')))
-                    sheet.write(i, 8, round(line.get('debit', ''), rounding), currency_format)
-                    sheet.write(i, 9, round(line.get('credit', ''), rounding), currency_format)
-                    sheet.write(i, 10, round(line.get('cumul_balance', ''), rounding), currency_format)
+                    sheet.write(i, 8, _get_data_float(line.get('debit', '')), currency_format)
+                    sheet.write(i, 9, _get_data_float(line.get('credit', '')), currency_format)
+                    sheet.write(i, 10, _get_data_float(line.get('cumul_balance', '')), currency_format)
                     sheet.write(i, 11, line.get('matching_number', ''))
 
                 def _set_table(start_row, row):
@@ -406,13 +406,8 @@ class AccountStandardExcel(ReportXlsx):
                 _header_sheet(sheet)
 
                 row = 6
-                # for group_by in data['group_by_data']['ids']:
-                #     all_lines = []
-                #     for line in data['lines_group_by'][group_by]['new_lines']:
-                #         if line['type_line'] != 'total':
-                #             all_lines.append(line)
 
-                all_lines = wizard.sql_get_line_for_report(type_l=('1_init_line', '2_line'))
+                all_lines = wizard.sql_get_line_for_report(type_l=('0_init', '1_init_line', '2_line'))
                 for obj in report.report_object_ids:
                     lines_obj = []
                     obj_id = obj.id

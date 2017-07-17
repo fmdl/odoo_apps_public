@@ -231,7 +231,7 @@
                                         <tr>
                                             <th class="col-xs-1" t-if="o.type == 'journal'">JRNL</th>
                                             <th class="col-xs-1" t-if="o.type == 'account'">Account</th>
-                                            <th class="col-xs-3" t-if="o.type == 'partner'">Partner</th>
+                                            <th class="col-xs-1" t-if="o.type == 'partner'">Partner</th>
                                             <th class="col-xs-1 text-right">Debit</th>
                                             <th class="col-xs-1 text-right">Credit</th>
                                             <th class="col-xs-1 text-right">Balance</th>

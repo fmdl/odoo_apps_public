@@ -364,7 +364,8 @@ class AccountStandardLedger(models.TransientModel):
         if unaffected_earnings_account not in self.account_ids:
             return
 
-        if not self.report_id.report_object_ids.filtered(lambda x: x.object_id == unaffected_earnings_account.id):
+        report_object_id = self.report_id.report_object_ids.filtered(lambda x: x.object_id == unaffected_earnings_account.id)
+        if not report_object_id:
             report_object_id = self.report_id.report_object_ids.create({'report_id': self.report_id.id,
                                                                         'object_id': unaffected_earnings_account.id,
                                                                         'name': '%s %s' % (unaffected_earnings_account.code, unaffected_earnings_account.name),

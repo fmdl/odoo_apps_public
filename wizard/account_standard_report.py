@@ -6,7 +6,7 @@ import odoo.addons.decimal_precision as dp
 from datetime import datetime, timedelta
 from odoo import api, models, fields, _
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT
-
+from odoo.exceptions import AccessError, UserError
 
 D_LEDGER = {'general': {'name': _('General Ledger'),
                         'group_by': 'account_id',
@@ -234,7 +234,7 @@ class AccountStandardLedger(models.TransientModel):
 
     def action_view_lines(self):
         self.ensure_one()
-        self.compute_data()
+        self._compute_data()
 
         return {
             'name': _("Ledger Lines"),
@@ -250,16 +250,16 @@ class AccountStandardLedger(models.TransientModel):
 
     def print_pdf_report(self):
         self.ensure_one()
-        self.compute_data()
+        self._compute_data()
 
         return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_report')
 
     def print_excel_report(self):
         self.ensure_one()
-        self.compute_data()
+        self._compute_data()
         return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel')
 
-    def pre_compute(self):
+    def _pre_compute(self):
         lang_code = self.env.context.get('lang') or 'en_US'
         date_format = self.env['res.lang']._lang_get(lang_code).date_format
         time_format = self.env['res.lang']._lang_get(lang_code).time_format
@@ -287,8 +287,10 @@ class AccountStandardLedger(models.TransientModel):
             self.reconciled = True
             self.partner_select_ids = False
 
-    def compute_data(self):
-        self.pre_compute()
+    def _compute_data(self):
+        if not self.user_has_groups('account.group_account_manager'):
+            raise UserError(_('Your are not an accountant'))
+        self._pre_compute()
 
         self._sql_report_object()
         if self.type == 'account':

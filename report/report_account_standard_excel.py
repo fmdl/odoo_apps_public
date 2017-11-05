@@ -86,7 +86,7 @@ class AccountStandardExcel(ReportXlsx):
                      'col': {'total_function': 'sum', 'format': currency_format}},
                 ]
 
-                all_lines = wizard.sql_get_line_for_report(type_l=('4_total',))
+                all_lines = wizard._sql_get_line_for_report(type_l=('4_total',))
                 # print(all_lines)
                 if all_lines:
 
@@ -210,7 +210,7 @@ class AccountStandardExcel(ReportXlsx):
                 _header_sheet(sheet)
 
                 row = 6
-                all_lines = wizard.sql_get_line_for_report(type_l=('1_init_line', '2_line'))
+                all_lines = wizard._sql_get_line_for_report(type_l=('1_init_line', '2_line'))
                 for obj in report.report_object_ids:
 
                     lines_obj = []
@@ -280,7 +280,7 @@ class AccountStandardExcel(ReportXlsx):
                 sheet = workbook.add_worksheet(report.name)
                 _header_sheet(sheet)
 
-                all_lines = wizard.sql_get_line_for_report(type_l=('4_total',))
+                all_lines = wizard._sql_get_line_for_report(type_l=('4_total',))
                 # for group_by in data['group_by_data']['ids']:
                 #     all_lines.append(data['lines_group_by'][group_by])
                 if all_lines:
@@ -405,7 +405,7 @@ class AccountStandardExcel(ReportXlsx):
 
                 row = 6
 
-                all_lines = wizard.sql_get_line_for_report(type_l=('0_init', '1_init_line', '2_line'))
+                all_lines = wizard._sql_get_line_for_report(type_l=('0_init', '1_init_line', '2_line'))
                 for obj in report.report_object_ids:
                     lines_obj = []
                     obj_id = obj.id

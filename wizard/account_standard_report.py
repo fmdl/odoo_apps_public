@@ -235,7 +235,6 @@ class AccountStandardLedger(models.TransientModel):
     def action_view_lines(self):
         self.ensure_one()
         self._compute_data()
-
         return {
             'name': _("Ledger Lines"),
             'view_type': 'form',
@@ -251,7 +250,6 @@ class AccountStandardLedger(models.TransientModel):
     def print_pdf_report(self):
         self.ensure_one()
         self._compute_data()
-
         return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_report')
 
     def print_excel_report(self):
@@ -288,8 +286,8 @@ class AccountStandardLedger(models.TransientModel):
             self.partner_select_ids = False
 
     def _compute_data(self):
-        if not self.user_has_groups('account.group_account_manager'):
-            raise UserError(_('Your are not an accountant'))
+        if not self.user_has_groups('account.group_account_user'):
+            raise UserError(_('Your are not an accountant !'))
         self._pre_compute()
 
         self._sql_report_object()
@@ -896,7 +894,7 @@ class AccountStandardLedger(models.TransientModel):
             report_name += _(' Balance')
         return report_name
 
-    def sql_get_line_for_report(self, type_l, report_object=None):
+    def _sql_get_line_for_report(self, type_l, report_object=None):
         query = """SELECT
                     aml.report_object_id AS report_object_id,
                     aml.type_view AS type_view,

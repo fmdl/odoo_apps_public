@@ -1,6 +1,6 @@
 Account Standard report
 =======================
-This module can generate a accounting report in PDF and Excel, with the new implementation of the accounting from Odoo V9.
+This module can generate a accounting report in Odoo Tree View, PDF and Excel, with the new implementation of the accounting from Odoo V9.
 In this new implementation there are not openning entries, it is a continously  accounting. And in some case in repport
 the matching have no sense, because some moves are matched with the next year (or after the end date).
 
@@ -8,12 +8,14 @@ Features
 ========
 Report
 ------
+* Odoo Tree View
 * Export in PDF
 * Export Excel Files (xlsx), build to use pivot table
 * General Ledger
 * Partner Ledger
 * Journal Ledger
 * Open Ledger
+* Aged balance
 
 Initial balance
 ---------------
@@ -29,15 +31,16 @@ Matching Number
 Installation
 ============
 Just install the module
+Go to Accounting/Adviser/Chart of account : set the 'Thrid Parties' field on supplier and custommer accounts.
 
 Usage
 =====
-* Go to Accounting/Report/Standard
+* Go to Accounting/Report/Standard Report
 * Choose your options
 
 Known issues / Roadmap
 ======================
-If some options are selected this can generate a report that does not make sense.
+
 
 Bug Tracker
 ===========

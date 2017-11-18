@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import wizard
-import report
-import models
+from . import wizard
+from . import report
+from . import models

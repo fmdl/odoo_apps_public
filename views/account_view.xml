@@ -8,6 +8,7 @@
         <field name="arch" type="xml">
             <field name="deprecated" position="after">
                 <field name="compacted" attrs="{'readonly':[('reconcile','=',False)]}"/>
+                <field name="type_third_parties"/>
             </field>
         </field>
     </record>

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
-from odoo.addons.report_xlsx.report.report_xlsx import ReportXlsx
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
-from odoo import _
+from odoo import models, _
 
-
-class AccountStandardExcel(ReportXlsx):
+class StandardReportXlsx(models.AbstractModel):
+    _name = 'report.account_standard_report.report_account_standard_excel'
+    _inherit = 'report.report_xlsx.abstract'
 
     def generate_xlsx_report(self, workbook, data, wizard):
 
@@ -467,6 +467,3 @@ class AccountStandardExcel(ReportXlsx):
                         sheet.set_column(j, j, h['larg'])
 
                     _set_table(start_row, row)
-
-
-AccountStandardExcel('report.account_standard_report.report_account_standard_excel', 'account.report.standard.ledger')

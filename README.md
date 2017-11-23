@@ -16,6 +16,7 @@ Report
 * Journal Ledger
 * Open Ledger
 * Aged balance
+* Analytic Ledger
 
 Initial balance
 ---------------

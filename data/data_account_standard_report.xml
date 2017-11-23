@@ -8,12 +8,12 @@
             report_type="qweb-pdf"
             name="account_standard_report.report_account_standard_report"
             file="account_standard_report.report_account_standard_report"
-            attachment="(object.report_id.report_name + '.pdf')"
-            print_report_name="(object._get_printed_report_name())"/>
+            attachment="(object.report_id.report_name)"
+            print_report_name="(object.report_id.report_name)"/>
 
-        <!-- <record id="action_standard_report" model="ir.actions.report.xml">
+        <record id="action_standard_report" model="ir.actions.report">
             <field name="paperformat_id" ref="account_standard_report.paperformat_account_standard"/>
-        </record> -->
+        </record>
 
         <report
             id="action_standard_excel"
@@ -22,8 +22,8 @@
             report_type="xlsx"
             name="account_standard_report.report_account_standard_excel"
             file="account_standard_report.report_account_standard_excel"
-            attachment="(object.report_id.report_name + '.xlsx')"
-            print_report_name="(object._get_printed_report_name())"/>
+            attachment="(object.report_id.report_name)"
+            print_report_name="(object.report_id.report_name)"/>
 
     </data>
 </odoo>

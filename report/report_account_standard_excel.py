@@ -3,6 +3,7 @@ from datetime import datetime
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 from odoo import models, _
 
+
 class StandardReportXlsx(models.AbstractModel):
     _name = 'report.account_standard_report.report_account_standard_excel'
     _inherit = 'report.report_xlsx.abstract'
@@ -346,6 +347,9 @@ class StandardReportXlsx(models.AbstractModel):
                     {'name': _('Account Name'),
                      'larg': 15,
                      'col': {}},
+                    {'name': _('Analytic'),
+                     'larg': 20,
+                     'col': {}},
                     {'name': _('Journal entries'),
                      'larg': 20,
                      'col': {}},
@@ -382,14 +386,15 @@ class StandardReportXlsx(models.AbstractModel):
                     sheet.write(i, 1, line.get('j_code', ''))
                     sheet.write(i, 2, line.get('a_code', ''))
                     sheet.write(i, 3, line.get('a_name', ''))
-                    sheet.write(i, 4, line.get('move_name', ''))
-                    sheet.write(i, 5, line.get('displayed_name', ''))
-                    sheet.write(i, 6, line.get('partner_name', ''))
-                    sheet.write(i, 7, get_date_format(line.get('date_maturity', '')))
-                    sheet.write(i, 8, _get_data_float(line.get('debit', '')), currency_format)
-                    sheet.write(i, 9, _get_data_float(line.get('credit', '')), currency_format)
-                    sheet.write(i, 10, _get_data_float(line.get('cumul_balance', '')), currency_format)
-                    sheet.write(i, 11, line.get('matching_number', ''))
+                    sheet.write(i, 4, "%s - %s" % (line.get('an_code', ''), line.get('an_name', '')) if line.get('an_code', '') else line.get('an_name', ''))
+                    sheet.write(i, 5, line.get('move_name', ''))
+                    sheet.write(i, 6, line.get('displayed_name', ''))
+                    sheet.write(i, 7, line.get('partner_name', ''))
+                    sheet.write(i, 8, get_date_format(line.get('date_maturity', '')))
+                    sheet.write(i, 9, _get_data_float(line.get('debit', '')), currency_format)
+                    sheet.write(i, 10, _get_data_float(line.get('credit', '')), currency_format)
+                    sheet.write(i, 11, _get_data_float(line.get('cumul_balance', '')), currency_format)
+                    sheet.write(i, 12, line.get('matching_number', ''))
 
                 def _set_table(start_row, row):
                     sheet.add_table(start_row - 1, 0, row + 1, len(head) - 1,
@@ -421,6 +426,8 @@ class StandardReportXlsx(models.AbstractModel):
                             name_view = obj.partner_id.display_name
                         if wizard.type == 'journal':
                             name_view = obj.journal_id.display_name
+                        if wizard.type == 'analytic':
+                            name_view = obj.analytic_account_id.display_name
 
                         sheet.write(row, 0, name_view, left)
                         sheet.write(row, 1, '', top)
@@ -433,7 +440,8 @@ class StandardReportXlsx(models.AbstractModel):
                         sheet.write(row, 8, '', top)
                         sheet.write(row, 9, '', top)
                         sheet.write(row, 10, '', top)
-                        sheet.write(row, 11, '', right)
+                        sheet.write(row, 11, '', top)
+                        sheet.write(row, 12, '', right)
 
                         row += 2
                         start_row = row

@@ -232,6 +232,7 @@
                                             <th class="col-xs-1" t-if="o.type == 'journal'">JRNL</th>
                                             <th class="col-xs-1" t-if="o.type == 'account'">Account</th>
                                             <th class="col-xs-1" t-if="o.type == 'partner'">Partner</th>
+                                            <th class="col-xs-1" t-if="o.type == 'analytic'">Analytic</th>
                                             <th class="col-xs-1 text-right">Debit</th>
                                             <th class="col-xs-1 text-right">Credit</th>
                                             <th class="col-xs-1 text-right">Balance</th>
@@ -247,6 +248,9 @@
                                             </td>
                                             <td t-if="o.type == 'partner'">
                                                 <span t-field="l.partner_id"></span>
+                                            </td>
+                                            <td t-if="o.type == 'analytic'">
+                                                <span t-field="l.analytic_account_id"></span>
                                             </td>
                                             <td class="text-right">
                                                 <span t-if="l.debit" t-esc="l.debit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
@@ -268,6 +272,7 @@
                                             <th class="col-xs-1">Date</th>
                                             <th class="col-xs-1">JRNL</th>
                                             <th class="col-xs-1">Account</th>
+                                            <th class="col-xs-1">Analytic</th>
                                             <th class="col-xs-1">Journal entries</th>
                                             <th class="col-xs-3">Ref</th>
                                             <th class="col-xs-3">Partner</th>
@@ -281,10 +286,11 @@
                                     <t t-foreach="o.report_id.report_object_ids" t-as="object">
                                         <tbody t-if="object.line_ids" style="border-bottom: 1px solid;page-break-inside: avoid">
                                             <tr style="border-bottom: 1px solid #ddd;">
-                                                <td colspan="10">
+                                                <td colspan="11">
                                                     <strong t-if="o.type == 'account'" t-field="object.account_id"/>
                                                     <strong t-if="o.type == 'partner'" t-field="object.partner_id"/>
                                                     <strong t-if="o.type == 'journal'" t-field="object.journal_id"/>
+                                                    <strong t-if="o.type == 'analytic'" t-field="object.analytic_account_id"/>
                                                 </td>
                                                 <td></td>
                                             </tr>
@@ -303,6 +309,10 @@
                                                 <td>
                                                     <i t-if="l.type_view == 'init'" t-field="l.account_id.code"></i>
                                                     <span t-if="l.type_view == 'normal'" t-field="l.account_id.code"></span>
+                                                </td>
+                                                <td>
+                                                    <i t-if="l.type_view == 'init'" t-field="l.analytic_account_id"></i>
+                                                    <span t-if="l.type_view == 'normal'" t-field="l.analytic_account_id"></span>
                                                 </td>
                                                 <td>
                                                     <i t-if="l.type_view == 'init'" t-field="l.move_id"></i>

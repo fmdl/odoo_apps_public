@@ -250,12 +250,12 @@ class AccountStandardLedger(models.TransientModel):
     def print_pdf_report(self):
         self.ensure_one()
         self._compute_data()
-        return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_report')
+        return self.env.ref('account_standard_report.action_standard_report').report_action(self)
 
     def print_excel_report(self):
         self.ensure_one()
         self._compute_data()
-        return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_excel')
+        return self.env.ref('account_standard_report.action_standard_excel').report_action(self)
 
     def _pre_compute(self):
         lang_code = self.env.context.get('lang') or 'en_US'

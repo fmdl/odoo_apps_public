@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <template id="report_account_standard_report">
-        <t t-call="report.html_container">
+        <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
-                <t t-call="report.internal_layout">
+                <t t-call="web.internal_layout">
 
                     <div class="page" style="font-size:11px">
                         <h2 t-field="o.report_id.name"/>

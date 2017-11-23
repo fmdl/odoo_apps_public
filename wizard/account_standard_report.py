@@ -33,7 +33,7 @@ D_LEDGER = {'general': {'name': _('General Ledger'),
                      'model': 'res.partner',
                      'short': 'name',
                      },
-            'analytic': {'name': _('Analytic'),
+            'analytic': {'name': _('Analytic Ledger'),
                          'group_by': 'analytic_account_id',
                          'model': 'account.analytic.account',
                          'short': 'name',
@@ -150,7 +150,7 @@ class AccountStandardLedger(models.TransientModel):
         return False
 
     name = fields.Char(default='Standard Report')
-    type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger'), ('open', 'Open Ledger'), ('aged', 'Aged Balance'), ('analytic', 'Analytic')], string='Type', default='general', required=True,
+    type_ledger = fields.Selection([('general', 'General Ledger'), ('partner', 'Partner Ledger'), ('journal', 'Journal Ledger'), ('open', 'Open Ledger'), ('aged', 'Aged Balance'), ('analytic', 'Analytic Ledger')], string='Type', default='general', required=True,
                                    help=' * General Ledger : Journal entries group by account\n'
                                    ' * Partner Leger : Journal entries group by partner, with only payable/recevable accounts\n'
                                    ' * Journal Ledger : Journal entries group by journal, without initial balance\n'
@@ -376,7 +376,7 @@ class AccountStandardLedger(models.TransientModel):
             self.type,
             tuple(self.analytic_account_ids.ids) if self.analytic_account_ids else (None,),
         ]
-        print(query % tuple(params))
+
         self.env.cr.execute(query, tuple(params))
 
     def _sql_unaffected_earnings(self):
@@ -716,7 +716,7 @@ class AccountStandardLedger(models.TransientModel):
             self.reconciled,
 
         ]
-        print(query % tuple(params))
+
         self.env.cr.execute(query, tuple(params))
 
     def _sql_lines_compacted(self):

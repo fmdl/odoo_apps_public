@@ -48,4 +48,4 @@ Usage
    raw_input("and press Enter to close...")
 
 * Install this module
-* go to settings > technical > Iap Account configuration and select OVH in provider.
+* go to Settings > Technical > Iap Account configuration and select OVH.

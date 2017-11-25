@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 {
-    'name': 'OVH SMS Client',
+    'name': 'OVH SMS Endpoint',
     'version': '2.0',
     'license': 'AGPL-3',
     'depends': ['sms', ],
@@ -13,4 +13,5 @@
     'installable': True,
     'price': 0.0,
     'currency': 'EUR'
+    'images': ['images/main_screenshot.png']
 }

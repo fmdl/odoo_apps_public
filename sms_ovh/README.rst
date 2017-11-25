@@ -48,4 +48,5 @@ Usage
    raw_input("and press Enter to close...")
 
 * Install this module
-* go to Settings > Technical > Iap Account configuration and select OVH.
+* Go to Settings > Technical > Iap Account configuration and select OVH.
+* Only use international phone number ex : +33123456789 (Install phone_validation module)

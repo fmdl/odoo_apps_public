@@ -4,7 +4,7 @@
     'name': 'OVH SMS Endpoint',
     'version': '2.0',
     'license': 'AGPL-3',
-    'depends': ['sms', ],
+    'depends': ['sms',],
     'author': 'Florent de Labarre',
     'website': 'https://github.com/fmdl',
     'category': 'crm',

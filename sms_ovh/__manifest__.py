@@ -12,6 +12,6 @@
     'data': ['views/sms_views.xml', 'data/data.xml'],
     'installable': True,
     'price': 0.0,
-    'currency': 'EUR'
-    'images': ['images/main_screenshot.png']
+    'currency': 'EUR',
+    'images': ['images/main_screenshot.png'],
 }

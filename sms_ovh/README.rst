@@ -1,15 +1,15 @@
 ===============
-SMS client OVH
+SMS OVH Enpoint
 ===============
 
-This module provide OVH fields to create OVH gateway.
+This module provide OVH SMS Endpoint.
 
 Usage
 =====
 
+* Buy SMS package on https://www.ovh.com/
 * Create your application on this page : https://eu.api.ovh.com/createApp/
-* Buy Sms package on https://www.ovh.com/
-* Excecute this script to get your consumer key and set the access right settings::
+* Excecute this python script to get your consumer key and set the access right settings::
 
    # -*- encoding: utf-8 -*-
 
@@ -47,4 +47,5 @@ Usage
 
    raw_input("and press Enter to close...")
 
+* Install this module
 * go to settings > technical > Iap Account configuration and select OVH in provider.

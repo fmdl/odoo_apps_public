@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <report
+        id="action_standard_report"
+        model="account.report.standard.ledger"
+        string="Standard Report"
+        report_type="qweb-pdf"
+        name="account_standard_report.report_account_standard_report"
+        file="account_standard_report.report_account_standard_report"
+        attachment="(object.report_id.report_name)"
+        print_report_name="(object.report_id.report_name)"
+        paperformat="account_standard_report.paperformat_account_standard"/>
+
+    <report
+        id="action_standard_excel"
+        model="account.report.standard.ledger"
+        string="Excel Report"
+        report_type="xlsx"
+        name="account_standard_report.report_account_standard_excel"
+        file="account_standard_report.report_account_standard_excel"
+        attachment="(object.report_id.report_name)"
+        print_report_name="(object.report_id.report_name)"/>
+        
+</odoo>

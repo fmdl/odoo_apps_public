@@ -19,5 +19,5 @@
     'demo': [],
     'installable': True,
     'auto_install': False,
-    'images': ['images/main_1.png', 'images/main_2.png', 'images/main_screenshot.png'],
+    'images': ['images/main_screenshot.png'],
 }

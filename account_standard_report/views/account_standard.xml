@@ -132,7 +132,7 @@
                     <filter string="Partner" domain="[]" context="{'group_by':'partner_id'}"/>
                     <filter string="Journal" domain="[]" context="{'group_by':'journal_id'}"/>
                     <filter string="Account" context="{'group_by':'account_id'}"/>
-                    <filter string="Account" context="{'group_by':'analytic_account_id'}"/>
+                    <filter string="Analytic" context="{'group_by':'analytic_account_id'}"/>
                     <filter string="Date" domain="[]" context="{'group_by':'date'}"/>
                     <filter string="Type" domain="[]" context="{'group_by':'type'}"/>
                 </group>

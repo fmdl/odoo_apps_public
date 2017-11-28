@@ -252,7 +252,7 @@ class AccountStandardLedger(models.TransientModel):
             'res_model': 'account.report.standard.ledger.line',
             'type': 'ir.actions.act_window',
             'domain': "[('report_id','=',%s),('type','not in',('5_super_total','4_total'))]" % (self.report_id.id),
-            'context': {'search_default_%s' % self.type_ledger: 1, 'read_report_id': self.report_id.id},
+            'context': {'search_default_%s' % self.type_ledger: 1},
             'target': 'current',
         }
 

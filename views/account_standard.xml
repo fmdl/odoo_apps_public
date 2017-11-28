@@ -108,6 +108,11 @@
             <search string="Journal Items">
                 <field name="move_id" filter_domain="['|', ('move_id','ilike',self)]" string="Move"/>
                 <field name="date"/>
+                <field name="account_id"/>
+                <field name="analytic_account_id"/>
+                <field name="partner_id"/>
+                <field name="journal_id"/>
+                <field name="type"/>
                 <separator/>
                 <filter string="Unposted" domain="[('move_id.state','=','draft')]" help="Unposted Journal Items"/>
                 <filter name="posted" string="Posted" domain="[('move_id.state','=','posted')]" help="Posted Journal Items"/>
@@ -122,20 +127,6 @@
                 <filter string="Open" domain="[('type', '!=', '4_total')]" context="{'group_by':'account_id'}" name="open"/>
                 <filter string="Aged Balance" domain="[('type', '!=', '4_total')]" context="{'group_by':'partner_id'}" name="aged"/>
                 <filter string="Analytic" domain="[('type', '!=', '4_total')]" context="{'group_by':'analytic_account_id'}" name="analytic"/>
-                <separator/>
-                <field name="account_id"/>
-                <field name="analytic_account_id"/>
-                <field name="partner_id"/>
-                <field name="journal_id"/>
-                <field name="type"/>
-                <group expand="0" string="Group By">
-                    <filter string="Partner" domain="[]" context="{'group_by':'partner_id'}"/>
-                    <filter string="Journal" domain="[]" context="{'group_by':'journal_id'}"/>
-                    <filter string="Account" context="{'group_by':'account_id'}"/>
-                    <filter string="Account" context="{'group_by':'analytic_account_id'}"/>
-                    <filter string="Date" domain="[]" context="{'group_by':'date'}"/>
-                    <filter string="Type" domain="[]" context="{'group_by':'type'}"/>
-                </group>
             </search>
         </field>
     </record>

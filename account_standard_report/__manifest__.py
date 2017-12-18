@@ -5,7 +5,7 @@
     'version': '10.0.1.2.0',
     'category': 'Accounting & Finance',
     'author': 'Florent de Labarre',
-    'summary': 'Standard Accounting Report',
+    'summary': 'Great Accounting Report - easy to use - Tree View, PDF and Excel mode.',
     'website': 'https://github.com/fmdl',
     'depends': ['account', 'report_xlsx'],
     'data': [

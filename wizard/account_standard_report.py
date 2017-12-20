@@ -130,9 +130,10 @@ class AccountStandardLedger(models.TransientModel):
         date_format = self.env['res.lang']._lang_get(lang_code).date_format
 
         today_year = fields.datetime.now().year
-
-        last_day = self.company_id.fiscalyear_last_day or 31
-        last_month = self.company_id.fiscalyear_last_month or 12
+        company = self.env.user.company_id
+        last_day = company.fiscalyear_last_day or 31
+        last_month = company.fiscalyear_last_month or 12
+        
         periode_obj = self.env['account.report.standard.ledger.periode']
         periode_obj.search([]).unlink()
         periode_ids = periode_obj

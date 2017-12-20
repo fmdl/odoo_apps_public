@@ -134,7 +134,7 @@ class AccountStandardLedger(models.TransientModel):
         company = self.env.user.company_id
         last_day = company.fiscalyear_last_day or 31
         last_month = company.fiscalyear_last_month or 12
-        
+
         periode_obj = self.env['account.report.standard.ledger.periode']
         periode_obj.search([]).unlink()
         periode_ids = periode_obj
@@ -156,7 +156,8 @@ class AccountStandardLedger(models.TransientModel):
                                    help=' * General Ledger : Journal entries group by account\n'
                                    ' * Partner Leger : Journal entries group by partner, with only payable/recevable accounts\n'
                                    ' * Journal Ledger : Journal entries group by journal, without initial balance\n'
-                                   ' * Open Ledger : Openning journal at Start date\n')
+                                   ' * Open Ledger : Openning journal at Start date\n'
+                                   ' * Analytic Ledger : Journal entries group by analytic account\n')
     summary = fields.Boolean('Trial Balance', default=False,
                              help=' * Check : generate a trial balance.\n'
                              ' * Uncheck : detail report.\n')

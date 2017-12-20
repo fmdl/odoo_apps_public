@@ -79,7 +79,7 @@
                                             <th class="col-xs-1">Date</th>
                                             <th class="col-xs-1">JRNL</th>
                                             <th class="col-xs-1">Account</th>
-                                            <th class="col-xs-1">Journal entries</th>
+                                            <th class="col-xs-1">Journal Entry</th>
                                             <!-- <th class="col-xs-3">Ref</th> -->
                                             <th class="col-xs-1">Due Date</th>
                                             <th class="col-xs-1 text-right">Not Due</th>
@@ -307,7 +307,7 @@
                                             <th class="col-xs-1">JRNL</th>
                                             <th class="col-xs-1">Account</th>
                                             <th class="col-xs-1">Analytic</th>
-                                            <th class="col-xs-1">Journal entries</th>
+                                            <th class="col-xs-1">Journal Entry</th>
                                             <th class="col-xs-3">Ref</th>
                                             <th class="col-xs-3">Partner</th>
                                             <th class="col-xs-1">Due Date</th>

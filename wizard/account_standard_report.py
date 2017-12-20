@@ -2,11 +2,11 @@
 
 import calendar
 
-import odoo.addons.decimal_precision as dp
+import openerp.addons.decimal_precision as dp
 from datetime import datetime, timedelta
-from odoo import api, models, fields, _
-from odoo.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT
-from odoo.exceptions import AccessError, UserError
+from openerp import api, models, fields, _
+from openerp.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT
+from openerp.exceptions import AccessError, UserError
 
 D_LEDGER = {'general': {'name': _('General Ledger'),
                         'group_by': 'account_id',
@@ -127,7 +127,8 @@ class AccountStandardLedger(models.TransientModel):
 
     def _get_periode_date(self):
         lang_code = self.env.user.lang or 'en_US'
-        date_format = self.env['res.lang']._lang_get(lang_code).date_format
+        lang_id = self.env['res.lang']._lang_get(lang_code)
+        date_format = self.env['res.lang'].browse(lang_id).date_format
 
         today_year = fields.datetime.now().year
 
@@ -241,6 +242,7 @@ class AccountStandardLedger(models.TransientModel):
         elif self.periode_date and not self.month_selec:
             self.on_change_periode_date()
 
+    @api.multi
     def action_view_lines(self):
         self.ensure_one()
         self._compute_data()
@@ -256,11 +258,13 @@ class AccountStandardLedger(models.TransientModel):
             'target': 'current',
         }
 
+    @api.multi
     def print_pdf_report(self):
         self.ensure_one()
         self._compute_data()
         return self.env['report'].get_action(self, 'account_standard_report.report_account_standard_report')
 
+    @api.multi
     def print_excel_report(self):
         self.ensure_one()
         self._compute_data()
@@ -268,8 +272,9 @@ class AccountStandardLedger(models.TransientModel):
 
     def _pre_compute(self):
         lang_code = self.env.context.get('lang') or 'en_US'
-        date_format = self.env['res.lang']._lang_get(lang_code).date_format
-        time_format = self.env['res.lang']._lang_get(lang_code).time_format
+        lang_id = self.env['res.lang']._lang_get(lang_code)
+        date_format = self.env['res.lang'].browse(lang_id).date_format
+        time_format = self.env['res.lang'].browse(lang_id).time_format
 
         vals = {'report_name': self._get_name_report(),
                 'name': self._get_name_report(),

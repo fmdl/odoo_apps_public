@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
-from odoo.addons.report_xlsx.report.report_xlsx import ReportXlsx
-from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
-from odoo import _
+from openerp.addons.report_xlsx.report.report_xlsx import ReportXlsx
+from openerp.tools import DEFAULT_SERVER_DATE_FORMAT
+from openerp import _
 
 
 class AccountStandardExcel(ReportXlsx):
@@ -20,7 +20,8 @@ class AccountStandardExcel(ReportXlsx):
         report_format = workbook.add_format({'font_size': 24})
         rounding = self.env.user.company_id.currency_id.decimal_places or 2
         lang_code = self.env.user.lang or 'en_US'
-        date_format = self.env['res.lang']._lang_get(lang_code).date_format
+        lang_id = self.env['res.lang']._lang_get(lang_code)
+        date_format = self.env['res.lang'].browse(lang_id).date_format
 
         report = wizard.report_id
 

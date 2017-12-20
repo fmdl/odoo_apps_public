@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
+<openerp>
     <template id="report_account_standard_report">
         <t t-call="report.html_container">
             <t t-foreach="docs" t-as="o">
@@ -49,25 +49,25 @@
                                 <tbody style="white-space:nowrap">
                                     <tr>
                                         <td class="text-right" colspan="3">
-                                            <strong t-esc="o.report_id.line_super_total_id.current" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.current" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                         <td class="text-right">
-                                            <strong t-esc="o.report_id.line_super_total_id.age_30_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.age_30_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                         <td class="text-right">
-                                            <strong t-esc="o.report_id.line_super_total_id.age_60_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.age_60_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                         <td class="text-right">
-                                            <strong t-esc="o.report_id.line_super_total_id.age_90_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.age_90_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                         <td class="text-right">
-                                            <strong t-esc="o.report_id.line_super_total_id.age_120_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.age_120_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                         <td class="text-right">
-                                            <strong t-esc="o.report_id.line_super_total_id.older" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.older" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                         <td class="text-right">
-                                            <strong t-esc="o.report_id.line_super_total_id.balance" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.balance" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -118,32 +118,32 @@
                                                     <span t-if="l.type_view == 'normal'" t-field="l.date_maturity"></span>
                                                 </td>
                                                 <td class="text-right">
-                                                    <span t-if="l.current and l.type_view == 'normal'" t-esc="l.current" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-if="l.current and l.type_view == 'total'" t-esc="l.current" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-if="l.current and l.type_view == 'normal'" t-esc="l.current" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-if="l.current and l.type_view == 'total'" t-esc="l.current" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td class="text-right">
-                                                    <span t-if="l.age_30_days and l.type_view == 'normal'" t-esc="l.age_30_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-if="l.age_30_days and l.type_view == 'total'" t-esc="l.age_30_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-if="l.age_30_days and l.type_view == 'normal'" t-esc="l.age_30_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-if="l.age_30_days and l.type_view == 'total'" t-esc="l.age_30_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td class="text-right">
-                                                    <span t-if="l.age_60_days and l.type_view == 'normal'" t-esc="l.age_60_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-if="l.age_60_days and l.type_view == 'total'" t-esc="l.age_60_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-if="l.age_60_days and l.type_view == 'normal'" t-esc="l.age_60_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-if="l.age_60_days and l.type_view == 'total'" t-esc="l.age_60_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td class="text-right">
-                                                    <span t-if="l.age_90_days and l.type_view == 'normal'" t-esc="l.age_90_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-if="l.age_90_days and l.type_view == 'total'" t-esc="l.age_90_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-if="l.age_90_days and l.type_view == 'normal'" t-esc="l.age_90_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-if="l.age_90_days and l.type_view == 'total'" t-esc="l.age_90_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td class="text-right">
-                                                    <span t-if="l.age_120_days and l.type_view == 'normal'" t-esc="l.age_120_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-if="l.age_120_days and l.type_view == 'total'" t-esc="l.age_120_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-if="l.age_120_days and l.type_view == 'normal'" t-esc="l.age_120_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-if="l.age_120_days and l.type_view == 'total'" t-esc="l.age_120_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td class="text-right">
-                                                    <span t-if="l.older and l.type_view == 'normal'" t-esc="l.older" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-if="l.older and l.type_view == 'total'" t-esc="l.older" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-if="l.older and l.type_view == 'normal'" t-esc="l.older" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-if="l.older and l.type_view == 'total'" t-esc="l.older" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td class="text-right" style="border-left: 1px dotted #ddd;">
-                                                    <span t-if="l.type_view == 'normal'" t-esc="l.balance" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-if="l.type_view == 'total'" t-esc="l.balance" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-if="l.type_view == 'normal'" t-esc="l.balance" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-if="l.type_view == 'total'" t-esc="l.balance" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td>
                                                     <span t-if="l.reconciled" t-field="l.full_reconcile_id"/>
@@ -174,25 +174,25 @@
                                                 <span t-field="l.partner_id"></span>
                                             </td>
                                             <td class="text-right">
-                                                <span t-if="l.current" t-esc="l.current" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-if="l.current" t-esc="l.current" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                             <td class="text-right">
-                                                <span t-if="l.age_30_days" t-esc="l.age_30_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-if="l.age_30_days" t-esc="l.age_30_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                             <td class="text-right">
-                                                <span t-if="l.age_60_days" t-esc="l.age_60_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-if="l.age_60_days" t-esc="l.age_60_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                             <td class="text-right">
-                                                <span t-if="l.age_90_days" t-esc="l.age_90_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-if="l.age_90_days" t-esc="l.age_90_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                             <td class="text-right">
-                                                <span t-if="l.age_120_days" t-esc="l.age_120_days" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-if="l.age_120_days" t-esc="l.age_120_days" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                             <td class="text-right">
-                                                <span t-if="l.older" t-esc="l.older" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-if="l.older" t-esc="l.older" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                             <td class="text-right" style="border-left: 1px dotted #ddd;">
-                                                <span t-esc="l.balance" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-esc="l.balance" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                         </tr>
                                     </t>
@@ -214,13 +214,13 @@
                                 <tbody style="white-space:nowrap">
                                     <tr>
                                         <td class="text-right" colspan="3">
-                                            <strong t-esc="o.report_id.line_super_total_id.debit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.debit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                         <td class="text-right">
-                                            <strong t-esc="o.report_id.line_super_total_id.credit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.credit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                         <td class="text-right">
-                                            <strong t-esc="o.report_id.line_super_total_id.balance" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                            <strong t-esc="o.report_id.line_super_total_id.balance" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -253,13 +253,13 @@
                                                 <span t-field="l.analytic_account_id"></span>
                                             </td>
                                             <td class="text-right">
-                                                <span t-if="l.debit" t-esc="l.debit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-if="l.debit" t-esc="l.debit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                             <td class="text-right">
-                                                <span t-if="l.credit" t-esc="l.credit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-if="l.credit" t-esc="l.credit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                             <td class="text-right" style="border-left: 1px dotted #ddd;">
-                                                <span t-esc="l.balance" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                <span t-esc="l.balance" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                             </td>
                                         </tr>
                                     </t>
@@ -331,19 +331,19 @@
                                                     <span t-if="l.type_view == 'normal'" t-field="l.date_maturity"></span>
                                                 </td>
                                                 <td class="text-right">
-                                                    <span t-if="l.debit and l.type_view == 'normal'" t-esc="l.debit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <i t-if="l.debit and l.type_view == 'init'" t-esc="l.debit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-if="l.debit and l.type_view == 'total'" t-esc="l.debit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-if="l.debit and l.type_view == 'normal'" t-esc="l.debit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <i t-if="l.debit and l.type_view == 'init'" t-esc="l.debit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-if="l.debit and l.type_view == 'total'" t-esc="l.debit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td class="text-right">
-                                                    <span t-if="l.credit and l.type_view == 'normal'" t-esc="l.credit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <i t-if="l.credit and l.type_view == 'init'" t-esc="l.credit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-if="l.credit and l.type_view == 'total'" t-esc="l.credit" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-if="l.credit and l.type_view == 'normal'" t-esc="l.credit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <i t-if="l.credit and l.type_view == 'init'" t-esc="l.credit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-if="l.credit and l.type_view == 'total'" t-esc="l.credit" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td class="text-right" style="white-space:nowrap">
-                                                    <span t-esc="o.company_currency_id.round(l.cumul_balance) + 0.0" t-if="l.type_view == 'normal'" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <i t-esc="o.company_currency_id.round(l.cumul_balance) + 0.0" t-if="l.type_view == 'init'" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
-                                                    <strong t-esc="o.company_currency_id.round(l.cumul_balance) + 0.0" t-if="l.type_view == 'total'" t-esc-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <span t-esc="o.company_currency_id.round(l.cumul_balance) + 0.0" t-if="l.type_view == 'normal'" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <i t-esc="o.company_currency_id.round(l.cumul_balance) + 0.0" t-if="l.type_view == 'init'" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
+                                                    <strong t-esc="o.company_currency_id.round(l.cumul_balance) + 0.0" t-if="l.type_view == 'total'" t-field-options='{"widget": "monetary", "display_currency": o.company_currency_id}'/>
                                                 </td>
                                                 <td>
                                                     <span t-if="l.reconciled" t-field="l.full_reconcile_id"/>
@@ -360,4 +360,4 @@
             </t>
         </t>
     </template>
-</odoo>
+</openerp>

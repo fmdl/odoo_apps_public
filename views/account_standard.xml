@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
+<openerp>
     <record model="ir.ui.view" id="view_account_report_standard_ledger_line_tree">
         <field name="name">account.report.standard.ledger.line</field>
         <field name="model">account.report.standard.ledger.line</field>
@@ -131,4 +131,4 @@
             </search>
         </field>
     </record>
-</odoo>
+</openerp>

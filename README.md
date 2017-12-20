@@ -1,6 +1,6 @@
 Account Standard report
 =======================
-This module can generate a accounting report in Odoo Tree View, PDF and Excel, with the new implementation of the accounting from Odoo V9.
+This module can generate a accounting report in Odoo Tree View, PDF and Excel, with the new implementation of the accounting from openerp V9.
 In this new implementation there are not openning entries, it is a continously  accounting. And in some case in repport
 the matching have no sense, because some moves are matched with the next year (or after the end date).
 

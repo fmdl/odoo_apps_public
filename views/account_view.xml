@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
+<openerp>
     <record model="ir.ui.view" id="view_account_specific_form">
         <field name="name">account.account.form.inherit</field>
         <field name="inherit_id" ref="account.view_account_form"/>
@@ -12,4 +12,4 @@
             </field>
         </field>
     </record>
-</odoo>
+</openerp>

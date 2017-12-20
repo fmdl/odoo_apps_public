@@ -134,7 +134,7 @@ class AccountStandardLedger(models.TransientModel):
         company = self.env.user.company_id
         last_day = company.fiscalyear_last_day or 31
         last_month = company.fiscalyear_last_month or 12
-        
+
         periode_obj = self.env['account.report.standard.ledger.periode']
         periode_obj.search([]).unlink()
         periode_ids = periode_obj
@@ -247,7 +247,7 @@ class AccountStandardLedger(models.TransientModel):
         self.ensure_one()
         self._compute_data()
         return {
-            'name': _("Ledger Lines"),
+            'name': self.report_id.name,
             'view_type': 'form',
             'view_mode': 'tree,form',
             'views': [(self.env.ref('account_standard_report.view_aged_tree').id if self.type_ledger == 'aged' else False, 'tree'), (False, 'form')],

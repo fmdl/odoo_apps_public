@@ -249,7 +249,7 @@ class AccountStandardLedger(models.TransientModel):
         self.ensure_one()
         self._compute_data()
         return {
-            'name': _("Ledger Lines"),
+            'name': self.report_id.name,
             'view_type': 'form',
             'view_mode': 'tree,form',
             'views': [(self.env.ref('account_standard_report.view_aged_tree').id if self.type_ledger == 'aged' else False, 'tree'), (False, 'form')],

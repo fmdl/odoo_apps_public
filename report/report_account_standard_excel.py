@@ -9,14 +9,14 @@ class AccountStandardExcel(ReportXlsx):
 
     def generate_xlsx_report(self, workbook, data, wizard):
 
-        num_format = _('_ * #,##0.00_) ;_ * - #,##0.00_) ;_ * "-"??_) ;_ @_ ')
+        num_format = wizard.company_currency_id.excel_format
         bold = workbook.add_format({'bold': True})
         middle = workbook.add_format({'bold': True, 'top': 1})
         left = workbook.add_format({'left': 1, 'top': 1, 'bold': True})
         right = workbook.add_format({'right': 1, 'top': 1})
         top = workbook.add_format({'top': 1})
-        currency_format = workbook.add_format({'num_format': _(num_format)})
-        c_middle = workbook.add_format({'bold': True, 'top': 1, 'num_format': _(num_format)})
+        currency_format = workbook.add_format({'num_format': num_format})
+        c_middle = workbook.add_format({'bold': True, 'top': 1, 'num_format': num_format})
         report_format = workbook.add_format({'font_size': 24})
         rounding = self.env.user.company_id.currency_id.decimal_places or 2
         lang_code = self.env.user.lang or 'en_US'
@@ -371,6 +371,9 @@ class AccountStandardExcel(ReportXlsx):
                     {'name': _('Balance'),
                      'larg': 15,
                      'col': {'format': currency_format}},
+                    {'name': _('Amount Currency'),
+                        'larg': 15,
+                        'col': {},
                     {'name': _('Match.'),
                      'larg': 10,
                      'col': {}},
@@ -394,7 +397,9 @@ class AccountStandardExcel(ReportXlsx):
                     sheet.write(i, 9, _get_data_float(line.get('debit', '')), currency_format)
                     sheet.write(i, 10, _get_data_float(line.get('credit', '')), currency_format)
                     sheet.write(i, 11, _get_data_float(line.get('cumul_balance', '')), currency_format)
-                    sheet.write(i, 12, line.get('matching_number', ''))
+                    if line.get('amount_currency', ''):
+                        sheet.write(i, 12, _get_data_float(line.get('amount_currency', '')), workbook.add_format({'num_format': line.get('currency')}))
+                    sheet.write(i, 13, line.get('matching_number', ''))
 
                 def _set_table(start_row, row):
                     sheet.add_table(start_row - 1, 0, row + 1, len(head) - 1,
@@ -402,7 +407,6 @@ class AccountStandardExcel(ReportXlsx):
                                      'columns': table,
                                      'style': 'Table Style Light 9',
                                      })
-                    #sheet.write(row + 1, 10, "=I%s-J%s" % (row + 2, row + 2), currency_format)
 
                 # With total workbook
                 sheet = workbook.add_worksheet(report.name + _(' Totals'))
@@ -441,7 +445,8 @@ class AccountStandardExcel(ReportXlsx):
                         sheet.write(row, 9, '', top)
                         sheet.write(row, 10, '', top)
                         sheet.write(row, 11, '', top)
-                        sheet.write(row, 12, '', right)
+                        sheet.write(row, 12, '', top)
+                        sheet.write(row, 13, '', right)
 
                         row += 2
                         start_row = row

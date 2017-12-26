@@ -16,6 +16,8 @@
                 <field name="debit" sum="Total" attrs="{'invisible':[('debit','=',0)]}"/>
                 <field name="credit" sum="Total" attrs="{'invisible':[('credit','=',0)]}"/>
                 <field name="cumul_balance"/>
+                <field name="amount_currency" attrs="{'invisible':[('amount_currency','=',0)]}" widget='monetary' options="{'currency_field': 'currency_id'}" groups="base.group_multi_currency"/>
+                <field name="currency_id" invisible="1"/>
                 <field name="full_reconcile_id"/>
                 <field name="reconciled"/>
             </tree>

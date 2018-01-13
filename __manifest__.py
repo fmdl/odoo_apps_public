@@ -2,7 +2,7 @@
 
 {
     'name': 'Standard Accounting Report',
-    'version': '10.0.1.2.1',
+    'version': '10.0.1.2.2',
     'category': 'Accounting & Finance',
     'author': 'Florent de Labarre',
     'summary': 'Standard Accounting Report',

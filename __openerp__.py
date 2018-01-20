@@ -19,6 +19,7 @@
         'wizard/account_standard_report_view.xml',
     ],
     'price': 59.99,
+    'currency': 'EUR',
     'installable': True,
     'images': ['images/main_screenshot.png'],
 }

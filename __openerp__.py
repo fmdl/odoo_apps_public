@@ -18,8 +18,7 @@
         'views/res_currency_views.xml',
         'wizard/account_standard_report_view.xml',
     ],
-    'demo': [],
+    'price': 59.99,
     'installable': True,
-    'auto_install': False,
     'images': ['images/main_screenshot.png'],
 }

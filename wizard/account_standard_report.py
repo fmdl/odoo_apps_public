@@ -81,20 +81,23 @@ class AccountStandardLedgerLines(models.TransientModel):
     move_line_id = fields.Many2one('account.move.line')
     date = fields.Date()
     date_maturity = fields.Date('Due Date')
-    debit = fields.Float(default=0.0, digits=dp.get_precision('Account'))
-    credit = fields.Float(default=0.0, digits=dp.get_precision('Account'))
-    balance = fields.Float(default=0.0, digits=dp.get_precision('Account'))
-    cumul_balance = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='Balance')
+    debit = fields.Monetary(default=0.0, currency_field='company_currency_id')
+    credit = fields.Monetary(default=0.0, currency_field='company_currency_id')
+    balance = fields.Monetary(default=0.0, currency_field='company_currency_id')
+    cumul_balance = fields.Monetary(default=0.0, currency_field='company_currency_id', string='Balance')
     full_reconcile_id = fields.Many2one('account.full.reconcile', 'Match.')
     reconciled = fields.Boolean('Reconciled')
     report_object_id = fields.Many2one('account.report.standard.ledger.report.object')
 
-    current = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='Not due')
-    age_30_days = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='30 days')
-    age_60_days = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='60 days')
-    age_90_days = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='90 days')
-    age_120_days = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='120 days')
+    current = fields.Monetary(default=0.0, currency_field='company_currency_id', string='Not due')
+    age_30_days = fields.Monetary(default=0.0, currency_field='company_currency_id', string='30 days')
+    age_60_days = fields.Monetary(default=0.0, currency_field='company_currency_id', string='60 days')
+    age_90_days = fields.Monetary(default=0.0, currency_field='company_currency_id', string='90 days')
+    age_120_days = fields.Monetary(default=0.0, currency_field='company_currency_id', string='120 days')
     older = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='Older')
+
+    amount_currency = fields.Monetary(default=0.0, currency_field='currency_id', string='Amount Currency')
+    currency_id = fields.Many2one('res.currency')
 
     company_currency_id = fields.Many2one('res.currency')
 
@@ -131,8 +134,10 @@ class AccountStandardLedger(models.TransientModel):
 
         today_year = fields.datetime.now().year
 
-        last_day = self.company_id.fiscalyear_last_day or 31
-        last_month = self.company_id.fiscalyear_last_month or 12
+        company = self.env.user.company_id
+        last_day = company.fiscalyear_last_day or 31
+        last_month = company.fiscalyear_last_month or 12
+
         periode_obj = self.env['account.report.standard.ledger.periode']
         periode_obj.search([]).unlink()
         periode_ids = periode_obj
@@ -245,14 +250,14 @@ class AccountStandardLedger(models.TransientModel):
         self.ensure_one()
         self._compute_data()
         return {
-            'name': _("Ledger Lines"),
+            'name': self.report_id.name,
             'view_type': 'form',
             'view_mode': 'tree,form',
             'views': [(self.env.ref('account_standard_report.view_aged_tree').id if self.type_ledger == 'aged' else False, 'tree'), (False, 'form')],
             'res_model': 'account.report.standard.ledger.line',
             'type': 'ir.actions.act_window',
             'domain': "[('report_id','=',%s),('type','not in',('5_super_total','4_total'))]" % (self.report_id.id),
-            'context': {'search_default_%s' % self.type_ledger: 1, 'read_report_id': self.report_id.id},
+            'context': {'search_default_%s' % self.type_ledger: 1},
             'target': 'current',
         }
 
@@ -551,7 +556,7 @@ class AccountStandardLedger(models.TransientModel):
         # lines_table
         query = """
         INSERT INTO account_report_standard_ledger_line
-            (report_id, create_uid, create_date, account_id, analytic_account_id, type, type_view, journal_id, partner_id, move_id, move_line_id, date, date_maturity, debit, credit, balance, full_reconcile_id, reconciled, report_object_id, cumul_balance, current, age_30_days, age_60_days, age_90_days, age_120_days, older, company_currency_id)
+            (report_id, create_uid, create_date, account_id, analytic_account_id, type, type_view, journal_id, partner_id, move_id, move_line_id, date, date_maturity, debit, credit, balance, full_reconcile_id, reconciled, report_object_id, cumul_balance, current, age_30_days, age_60_days, age_90_days, age_120_days, older, company_currency_id, amount_currency, currency_id)
 
         WITH matching_in_futur_before_init (id) AS
         (
@@ -633,7 +638,9 @@ class AccountStandardLedger(models.TransientModel):
             CASE WHEN aml.date_maturity > date_range.date_less_120_days AND aml.date_maturity <= date_range.date_less_90_days THEN aml.balance END AS age_90_days,
             CASE WHEN aml.date_maturity > date_range.date_older AND aml.date_maturity <= date_range.date_less_120_days THEN aml.balance END AS age_120_days,
             CASE WHEN aml.date_maturity <= date_range.date_older THEN aml.balance END AS older,
-            %s AS company_currency_id
+            %s AS company_currency_id,
+            aml.amount_currency AS amount_currency,
+            aml.currency_id AS currency_id
         FROM
             date_range,
             account_report_standard_ledger_report_object ro
@@ -965,6 +972,8 @@ class AccountStandardLedger(models.TransientModel):
                     rep.name AS partner_name,
                     aml.date AS date,
                     aml.date_maturity AS date_maturity,
+                    aml.amount_currency AS amount_currency,
+                    cr.excel_format AS currency,
                     CASE
                         WHEN aml.full_reconcile_id IS NOT NULL THEN (CASE WHEN aml.reconciled = TRUE THEN afr.name ELSE '*' END)
                         ELSE ''
@@ -977,6 +986,7 @@ class AccountStandardLedger(models.TransientModel):
                     LEFT JOIN account_move ml ON (ml.id = aml.move_id)
                     LEFT JOIN account_full_reconcile afr ON (aml.full_reconcile_id = afr.id)
                     LEFT JOIN account_analytic_account an_acc ON (aml.analytic_account_id = an_acc.id)
+                    LEFT JOIN res_currency cr ON (aml.currency_id = cr.id)
                 WHERE
                     aml.report_id = %s
                     AND (%s OR aml.report_object_id = %s)

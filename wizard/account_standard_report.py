@@ -305,6 +305,7 @@ class AccountStandardLedger(models.TransientModel):
     def _compute_data(self):
         if not self.user_has_groups('account.group_account_user'):
             raise UserError(_('Your are not an accountant !'))
+        self.env['account.move.line'].check_access_rights('read')
         self._pre_compute()
 
         self._sql_report_object()
@@ -937,9 +938,10 @@ class AccountStandardLedger(models.TransientModel):
         return report_name
 
     def _sql_get_line_for_report(self, type_l, report_object=None):
+        self.env['account.move.line'].check_access_rights('read')
         query = """SELECT
-                    aml.report_object_id AS report_object_id,
-                    aml.type_view AS type_view,
+                    raml.report_object_id AS report_object_id,
+                    raml.type_view AS type_view,
                     CASE
                         WHEN %s = 'account' THEN acc.code
                         WHEN %s = 'journal' THEN acj.code
@@ -957,42 +959,44 @@ class AccountStandardLedger(models.TransientModel):
                     acc.name AS a_name,
                     an_acc.code AS an_code,
                     an_acc.name AS an_name,
-                    aml.current AS current,
-                    aml.age_30_days AS age_30_days,
-                    aml.age_60_days AS age_60_days,
-                    aml.age_90_days AS age_90_days,
-                    aml.age_120_days AS age_120_days,
-                    aml.older AS older,
-                    aml.credit AS credit,
-                    aml.debit AS debit,
-                    aml.cumul_balance AS cumul_balance,
-                    aml.balance AS balance,
+                    raml.current AS current,
+                    raml.age_30_days AS age_30_days,
+                    raml.age_60_days AS age_60_days,
+                    raml.age_90_days AS age_90_days,
+                    raml.age_120_days AS age_120_days,
+                    raml.older AS older,
+                    raml.credit AS credit,
+                    raml.debit AS debit,
+                    raml.cumul_balance AS cumul_balance,
+                    raml.balance AS balance,
+                    aml.name AS displayed_name,
                     ml.name AS move_name,
-                    ml.ref AS displayed_name,
+                    aml.ref AS displayed_ref,
                     rep.name AS partner_name,
-                    aml.date AS date,
-                    aml.date_maturity AS date_maturity,
-                    aml.amount_currency AS amount_currency,
+                    raml.date AS date,
+                    raml.date_maturity AS date_maturity,
+                    raml.amount_currency AS amount_currency,
                     cr.excel_format AS currency,
                     CASE
-                        WHEN aml.full_reconcile_id IS NOT NULL THEN (CASE WHEN aml.reconciled = TRUE THEN afr.name ELSE '*' END)
+                        WHEN raml.full_reconcile_id IS NOT NULL THEN (CASE WHEN raml.reconciled = TRUE THEN afr.name ELSE '*' END)
                         ELSE ''
                     END AS matching_number
                 FROM
-                    account_report_standard_ledger_line aml
-                    LEFT JOIN account_account acc ON (acc.id = aml.account_id)
-                    LEFT JOIN account_journal acj ON (acj.id = aml.journal_id)
-                    LEFT JOIN res_partner rep ON (rep.id = aml.partner_id)
-                    LEFT JOIN account_move ml ON (ml.id = aml.move_id)
-                    LEFT JOIN account_full_reconcile afr ON (aml.full_reconcile_id = afr.id)
-                    LEFT JOIN account_analytic_account an_acc ON (aml.analytic_account_id = an_acc.id)
-                    LEFT JOIN res_currency cr ON (aml.currency_id = cr.id)
+                    account_report_standard_ledger_line raml
+                    LEFT JOIN account_account acc ON (acc.id = raml.account_id)
+                    LEFT JOIN account_journal acj ON (acj.id = raml.journal_id)
+                    LEFT JOIN res_partner rep ON (rep.id = raml.partner_id)
+                    LEFT JOIN account_move ml ON (ml.id = raml.move_id)
+                    LEFT JOIN account_move_line aml ON (aml.id = raml.move_line_id)
+                    LEFT JOIN account_full_reconcile afr ON (raml.full_reconcile_id = afr.id)
+                    LEFT JOIN account_analytic_account an_acc ON (raml.analytic_account_id = an_acc.id)
+                    LEFT JOIN res_currency cr ON (raml.currency_id = cr.id)
                 WHERE
-                    aml.report_id = %s
-                    AND (%s OR aml.report_object_id = %s)
-                    AND aml.type IN %s
+                    raml.report_id = %s
+                    AND (%s OR raml.report_object_id = %s)
+                    AND raml.type IN %s
                 ORDER BY
-                    aml.id
+                    raml.id
                 """
         params = [
             self.type, self.type, self.type, self.type, self.type, self.type,

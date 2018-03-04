@@ -355,6 +355,9 @@ class AccountStandardExcel(ReportXlsx):
                     {'name': _('Ref'),
                      'larg': 40,
                      'col': {}},
+                    {'name': _('Name'),
+                     'larg': 40,
+                     'col': {}},
                     {'name': _('Partner'),
                      'larg': 20,
                      'col': {}},
@@ -390,15 +393,16 @@ class AccountStandardExcel(ReportXlsx):
                     sheet.write(i, 3, line.get('a_name', ''))
                     sheet.write(i, 4, "%s - %s" % (line.get('an_code', ''), line.get('an_name', '')) if line.get('an_code', '') else line.get('an_name', ''))
                     sheet.write(i, 5, line.get('move_name', ''))
-                    sheet.write(i, 6, line.get('displayed_name', ''))
-                    sheet.write(i, 7, line.get('partner_name', ''))
-                    sheet.write(i, 8, get_date_format(line.get('date_maturity', '')))
-                    sheet.write(i, 9, _get_data_float(line.get('debit', '')), currency_format)
-                    sheet.write(i, 10, _get_data_float(line.get('credit', '')), currency_format)
-                    sheet.write(i, 11, _get_data_float(line.get('cumul_balance', '')), currency_format)
+                    sheet.write(i, 6, line.get('displayed_ref', ''))
+                    sheet.write(i, 7, line.get('displayed_name', ''))
+                    sheet.write(i, 8, line.get('partner_name', ''))
+                    sheet.write(i, 9, get_date_format(line.get('date_maturity', '')))
+                    sheet.write(i, 10, _get_data_float(line.get('debit', '')), currency_format)
+                    sheet.write(i, 11, _get_data_float(line.get('credit', '')), currency_format)
+                    sheet.write(i, 12, _get_data_float(line.get('cumul_balance', '')), currency_format)
                     if line.get('amount_currency', ''):
-                        sheet.write(i, 12, _get_data_float(line.get('amount_currency', '')), workbook.add_format({'num_format': line.get('currency')}))
-                    sheet.write(i, 13, line.get('matching_number', ''))
+                        sheet.write(i, 13, _get_data_float(line.get('amount_currency', '')), workbook.add_format({'num_format': line.get('currency')}))
+                    sheet.write(i, 14, line.get('matching_number', ''))
 
                 def _set_table(start_row, row):
                     sheet.add_table(start_row - 1, 0, row + 1, len(head) - 1,

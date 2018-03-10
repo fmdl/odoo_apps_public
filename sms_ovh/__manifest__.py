@@ -2,7 +2,7 @@
 
 {
     'name': 'OVH SMS Endpoint',
-    'version': '2.0',
+    'version': '11.0.2.0.0',
     'license': 'AGPL-3',
     'depends': ['sms',],
     'author': 'Florent de Labarre',

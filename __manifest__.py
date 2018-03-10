@@ -2,8 +2,8 @@
 
 {
     'name': 'Standard Accounting Report',
-    'version': '10.0.1.2.2',
-    'category': 'Accounting & Finance',
+    'version': '11.0.1.2.2',
+    'category': 'Accounting',
     'author': 'Florent de Labarre',
     'summary': 'Standard Accounting Report',
     'website': 'https://github.com/fmdl',
@@ -21,5 +21,7 @@
     'demo': [],
     'installable': True,
     'auto_install': False,
+    'price': 0.0,
+    'currency': 'EUR',
     'images': ['images/main_screenshot.png'],
 }

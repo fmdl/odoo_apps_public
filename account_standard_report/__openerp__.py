@@ -2,7 +2,7 @@
 
 {
     'name': 'Standard Accounting Report',
-    'version': '9.0.1.0.0',
+    'version': '9.0.1.0.1',
     'category': 'Accounting & Finance',
     'author': 'Florent de Labarre',
     'summary': 'Standard Accounting Report',
@@ -18,7 +18,7 @@
         'views/res_currency_views.xml',
         'wizard/account_standard_report_view.xml',
     ],
-    'price': 59.99,
+    'price': 0,
     'currency': 'EUR',
     'installable': True,
     'images': ['images/main_screenshot.png'],

@@ -373,7 +373,7 @@ class AccountStandardExcel(ReportXlsx):
                      'col': {'format': currency_format}},
                     {'name': _('Amount Currency'),
                         'larg': 15,
-                        'col': {},
+                        'col': {}},
                     {'name': _('Match.'),
                      'larg': 10,
                      'col': {}},

@@ -1,3 +1,3 @@
 # -*- coding: utf-8 -*-
 
-from . import account_standard_report
+import account_standard_report

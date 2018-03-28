@@ -9,6 +9,7 @@ Usage
 
 * Buy SMS package on https://www.ovh.com/
 * Create your application on this page : https://eu.api.ovh.com/createApp/
+* Install ovh module for python with this command : pip install ovh
 * Excecute this python script to get your consumer key and set the access right settings::
 
    # -*- encoding: utf-8 -*-
@@ -27,9 +28,10 @@ Usage
    # create a client using configuration
    client = ovh.Client(endpoint, application_key=application_key, application_secret=application_secret, consumer_key='' )
 
-   # Request RO, /me API access
+   # Request RO /me, RW /sms API access
    ck = client.new_consumer_key_request()
-   ck.add_rules(ovh.API_READ_ONLY, "/me")
+   ck.add_recursive_rules(ovh.API_READ_ONLY, "/me")
+   ck.add_recursive_rules(ovh.API_READ_WRITE, "/sms")
 
    # Request token
    validation = ck.request()
@@ -40,10 +42,6 @@ Usage
    # Print your consumer Key
    print "Welcome", client.get('/me')['firstname']
    print "Btw, your 'consumerKey' is '%s'" % validation['consumerKey']
-
-   # Request RW, /me and /sms API access
-   ck.add_recursive_rules(ovh.API_READ_ONLY, "/me")
-   ck.add_recursive_rules(ovh.API_READ_WRITE, "/sms")
 
    raw_input("and press Enter to close...")
 

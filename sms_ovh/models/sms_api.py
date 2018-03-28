@@ -4,6 +4,7 @@ from odoo import api, models, fields, _
 from odoo.addons.iap.models.iap import InsufficientCreditError
 from odoo.exceptions import UserError
 import re
+import logging
 
 _logger = logging.getLogger(__name__)
 

@@ -221,7 +221,7 @@ class StandardReportXlsx(models.AbstractModel):
                             lines_obj.append(line)
                     if lines_obj:
                         row += 1
-                        sheet.write(row, 0, obj.partner_id.name, left)  # obj.partner_id.name
+                        sheet.write(row, 0, obj.partner_id.display_name, left)  # obj.partner_id.name
                         sheet.write(row, 1, '', top)
                         sheet.write(row, 2, '', top)
                         sheet.write(row, 3, '', top)

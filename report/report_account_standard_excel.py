@@ -418,7 +418,7 @@ class StandardReportXlsx(models.AbstractModel):
 
                 row = 6
 
-                all_lines = wizard._sql_get_line_for_report(type_l=('0_init', '1_init_line', '2_line'))
+                all_lines = wizard._sql_get_line_for_report(type_l=('0_init', '1_init_line', '2_line', '3_compact'))
                 for obj in report.report_object_ids:
                     lines_obj = []
                     obj_id = obj.id

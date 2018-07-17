@@ -972,7 +972,7 @@ class AccountStandardLedger(models.TransientModel):
                     aml.name AS displayed_name,
                     ml.name AS move_name,
                     aml.ref AS displayed_ref,
-                    rep.name AS partner_name,
+                    rep.display_name AS partner_name,
                     raml.date AS date,
                     raml.date_maturity AS date_maturity,
                     raml.amount_currency AS amount_currency,

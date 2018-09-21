@@ -222,7 +222,7 @@ class AccountStandardLedger(models.TransientModel):
             self.reconciled = True
             return {'domain': {'account_in_ex_clude': []}}
         self.account_in_ex_clude = False
-        if self.result_selection == 'suplier':
+        if self.result_selection == 'supplier':
             return {'domain': {'account_in_ex_clude': [('type_third_parties', '=', 'supplier')]}}
         if self.result_selection == 'customer':
             return {'domain': {'account_in_ex_clude': [('type_third_parties', '=', 'customer')]}}
@@ -604,7 +604,7 @@ class AccountStandardLedger(models.TransientModel):
         date_range AS
             (
                 SELECT
-                    %s AS date_current,
+                    DATE %s AS date_current,
                     DATE %s - INTEGER '30' AS date_less_30_days,
                     DATE %s - INTEGER '60' AS date_less_60_days,
                     DATE %s - INTEGER '90' AS date_less_90_days,
@@ -637,12 +637,12 @@ class AccountStandardLedger(models.TransientModel):
                 WHEN %s = 'partner' THEN COALESCE(init.balance, 0) + (SUM(aml.balance) OVER (PARTITION BY aml.partner_id ORDER BY aml.partner_id, aml.date, aml.id))
                 ELSE SUM(aml.balance) OVER (PARTITION BY aml.journal_id ORDER BY aml.journal_id, aml.date, aml.id)
             END AS cumul_balance,
-            CASE WHEN aml.date_maturity > date_range.date_less_30_days THEN aml.balance END AS current,
-            CASE WHEN aml.date_maturity > date_range.date_less_60_days AND aml.date_maturity <= date_range.date_less_30_days THEN aml.balance END AS age_30_days,
-            CASE WHEN aml.date_maturity > date_range.date_less_90_days AND aml.date_maturity <= date_range.date_less_60_days THEN aml.balance END AS age_60_days,
-            CASE WHEN aml.date_maturity > date_range.date_less_120_days AND aml.date_maturity <= date_range.date_less_90_days THEN aml.balance END AS age_90_days,
-            CASE WHEN aml.date_maturity > date_range.date_older AND aml.date_maturity <= date_range.date_less_120_days THEN aml.balance END AS age_120_days,
-            CASE WHEN aml.date_maturity <= date_range.date_older THEN aml.balance END AS older,
+            CASE WHEN aml.date_maturity > date_range.date_current THEN aml.balance END AS current,
+            CASE WHEN aml.date_maturity > date_range.date_less_30_days AND aml.date_maturity <= date_range.date_current THEN aml.balance END AS age_30_days,
+            CASE WHEN aml.date_maturity > date_range.date_less_60_days AND aml.date_maturity <= date_range.date_less_30_days THEN aml.balance END AS age_60_days,
+            CASE WHEN aml.date_maturity > date_range.date_less_90_days AND aml.date_maturity <= date_range.date_less_60_days THEN aml.balance END AS age_90_days,
+            CASE WHEN aml.date_maturity > date_range.date_less_120_days AND aml.date_maturity <= date_range.date_less_90_days THEN aml.balance END AS age_120_days,
+            CASE WHEN aml.date_maturity <= date_range.date_less_120_days THEN aml.balance END AS older,
             %s AS company_currency_id,
             aml.amount_currency AS amount_currency,
             aml.currency_id AS currency_id

@@ -221,7 +221,7 @@ class AccountStandardLedger(models.TransientModel):
             self.reconciled = True
             return {'domain': {'account_in_ex_clude': []}}
         self.account_in_ex_clude = False
-        if self.result_selection == 'suplier':
+        if self.result_selection == 'supplier':
             return {'domain': {'account_in_ex_clude': [('type_third_parties', '=', 'supplier')]}}
         if self.result_selection == 'customer':
             return {'domain': {'account_in_ex_clude': [('type_third_parties', '=', 'customer')]}}

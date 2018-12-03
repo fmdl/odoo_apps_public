@@ -35,7 +35,7 @@
                             </div>
                         </div>
 
-                        <t t-if="o.type_ledger == 'aged'">
+                        <t t-if="o.ledger_type == 'aged'">
                             <table class="table table-condensed">
                                 <thead>
                                     <tr>
@@ -77,7 +77,7 @@
                                 </tbody>
                             </table>
                             <t t-if="not o.summary">
-                                <table class="table-condensed">
+                                <table class="table table-condensed">
                                     <thead>
                                         <tr>
                                             <th class="col-xs-1">Date</th>
@@ -106,72 +106,72 @@
                                             </tr>
                                             <tr t-foreach="object.line_ids" t-as="l">
                                                 <td style="white-space:nowrap">
-                                                    <strong t-if="l.type_view != 'total'" t-field="l.date"></strong>
-                                                    <strong t-if="l.type_view == 'total'">Total</strong>
+                                                    <strong t-if="l.view_type != 'total'" t-field="l.date"></strong>
+                                                    <strong t-if="l.view_type == 'total'">Total</strong>
                                                 </td>
                                                 <td>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.journal_id.code"></span>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.journal_id.code"></span>
                                                 </td>
                                                 <td>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.account_id.code"></span>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.account_id.code"></span>
                                                 </td>
                                                 <td>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.move_id"></span>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.move_id"></span>
                                                 </td>
                                                 <td>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.date_maturity"></span>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.date_maturity"></span>
                                                 </td>
                                                 <td class="text-right">
-                                                    <div t-if="l.current and l.type_view == 'normal'">
+                                                    <div t-if="l.current and l.view_type == 'normal'">
                                                         <span t-field="l.current"/>
                                                     </div>
-                                                    <div t-if="l.current and l.type_view == 'total'">
+                                                    <div t-if="l.current and l.view_type == 'total'">
                                                         <strong t-field="l.current"/>
                                                     </div>
                                                 </td>
                                                 <td class="text-right">
-                                                    <div t-if="l.age_30_days and l.type_view == 'normal'">
+                                                    <div t-if="l.age_30_days and l.view_type == 'normal'">
                                                         <span t-field="l.age_30_days"/>
                                                     </div>
-                                                    <div t-if="l.age_30_days and l.type_view == 'total'">
+                                                    <div t-if="l.age_30_days and l.view_type == 'total'">
                                                         <strong t-field="l.age_30_days"/>
                                                     </div>
                                                 </td>
                                                 <td class="text-right">
-                                                    <div t-if="l.age_60_days and l.type_view == 'normal'">
+                                                    <div t-if="l.age_60_days and l.view_type == 'normal'">
                                                         <span t-field="l.age_60_days"/>
                                                     </div>
-                                                    <div t-if="l.age_60_days and l.type_view == 'total'">
+                                                    <div t-if="l.age_60_days and l.view_type == 'total'">
                                                         <strong t-field="l.age_60_days"/>
                                                     </div>
                                                 </td>
                                                 <td class="text-right">
-                                                    <div t-if="l.age_90_days and l.type_view == 'normal'">
+                                                    <div t-if="l.age_90_days and l.view_type == 'normal'">
                                                         <span t-field="l.age_90_days"/></div>
-                                                    <div t-if="l.age_90_days and l.type_view == 'total'">
+                                                    <div t-if="l.age_90_days and l.view_type == 'total'">
                                                         <strong t-field="l.age_90_days"/></div>
                                                 </td>
                                                 <td class="text-right">
-                                                    <div t-if="l.age_120_days and l.type_view == 'normal'">
+                                                    <div t-if="l.age_120_days and l.view_type == 'normal'">
                                                         <span t-field="l.age_120_days"/>
                                                     </div>
-                                                    <div t-if="l.age_120_days and l.type_view == 'total'">
+                                                    <div t-if="l.age_120_days and l.view_type == 'total'">
                                                         <strong t-field="l.age_120_days"/>
                                                     </div>
                                                 </td>
                                                 <td class="text-right">
-                                                    <div t-if="l.older and l.type_view == 'normal'">
+                                                    <div t-if="l.older and l.view_type == 'normal'">
                                                         <span t-field="l.older"/>
                                                     </div>
-                                                    <div t-if="l.older and l.type_view == 'total'">
+                                                    <div t-if="l.older and l.view_type == 'total'">
                                                         <strong t-field="l.older"/>
                                                     </div>
                                                 </td>
                                                 <td class="text-right" style="border-left: 1px dotted #ddd;">
-                                                    <div t-if="l.type_view == 'normal'">
+                                                    <div t-if="l.view_type == 'normal'">
                                                         <span t-field="l.balance"/>
                                                     </div>
-                                                    <div t-if="l.type_view == 'total'">
+                                                    <div t-if="l.view_type == 'total'">
                                                         <strong t-field="l.balance"/>
                                                     </div>
                                                 </td>
@@ -185,7 +185,7 @@
                                 </table>
                             </t>
                             <t t-if="o.summary">
-                                <table class="table-condensed">
+                                <table class="table table-condensed">
                                     <thead>
                                         <tr>
                                             <th class="col-xs-1">Partner</th>
@@ -230,7 +230,7 @@
                             </t>
                         </t>
 
-                        <t t-if="o.type_ledger != 'aged'">
+                        <t t-if="o.ledger_type != 'aged'">
                             <table class="table table-condensed">
                                 <thead>
                                     <tr>
@@ -256,13 +256,13 @@
                                 </tbody>
                             </table>
                             <t t-if="o.summary">
-                                <table class="table-condensed">
+                                <table class="table table-condensed">
                                     <thead>
                                         <tr>
-                                            <th class="col-xs-1" t-if="o.type == 'journal'">JRNL</th>
-                                            <th class="col-xs-1" t-if="o.type == 'account'">Account</th>
-                                            <th class="col-xs-1" t-if="o.type == 'partner'">Partner</th>
-                                            <th class="col-xs-1" t-if="o.type == 'analytic'">Analytic</th>
+                                            <th class="col-xs-1" t-if="o.report_type == 'journal'">JRNL</th>
+                                            <th class="col-xs-1" t-if="o.report_type == 'account'">Account</th>
+                                            <th class="col-xs-1" t-if="o.report_type == 'partner'">Partner</th>
+                                            <th class="col-xs-1" t-if="o.report_type == 'analytic'">Analytic</th>
                                             <th class="col-xs-1 text-right">Debit</th>
                                             <th class="col-xs-1 text-right">Credit</th>
                                             <th class="col-xs-1 text-right">Balance</th>
@@ -270,16 +270,16 @@
                                     </thead>
                                     <t t-foreach="o.report_id.line_total_ids" t-as="l">
                                         <tr style="border-bottom: 1px solid #ddd">
-                                            <td t-if="o.type == 'journal'">
+                                            <td t-if="o.report_type == 'journal'">
                                                 <span t-field="l.journal_id"></span>
                                             </td>
-                                            <td t-if="o.type == 'account'">
+                                            <td t-if="o.report_type == 'account'">
                                                 <span t-field="l.account_id"></span>
                                             </td>
-                                            <td t-if="o.type == 'partner'">
+                                            <td t-if="o.report_type == 'partner'">
                                                 <span t-field="l.partner_id"></span>
                                             </td>
-                                            <td t-if="o.type == 'analytic'">
+                                            <td t-if="o.report_type == 'analytic'">
                                                 <span t-field="l.analytic_account_id"></span>
                                             </td>
                                             <td class="text-right">
@@ -300,7 +300,7 @@
                                 </table>
                             </t>
                             <t t-if="not o.summary">
-                                <table class="table-condensed">
+                                <table class="table table-condensed">
                                     <thead>
                                         <tr>
                                             <th class="col-xs-1">Date</th>
@@ -322,75 +322,75 @@
                                         <tbody t-if="object.line_ids" style="border-bottom: 1px solid;page-break-inside: avoid">
                                             <tr style="border-bottom: 1px solid #ddd;">
                                                 <td colspan="12">
-                                                    <strong t-if="o.type == 'account'" t-field="object.account_id"/>
-                                                    <strong t-if="o.type == 'partner'" t-field="object.partner_id"/>
-                                                    <strong t-if="o.type == 'journal'" t-field="object.journal_id"/>
-                                                    <strong t-if="o.type == 'analytic'" t-field="object.analytic_account_id"/>
+                                                    <strong t-if="o.report_type == 'account'" t-field="object.account_id"/>
+                                                    <strong t-if="o.report_type == 'partner'" t-field="object.partner_id"/>
+                                                    <strong t-if="o.report_type == 'journal'" t-field="object.journal_id"/>
+                                                    <strong t-if="o.report_type == 'analytic'" t-field="object.analytic_account_id"/>
                                                 </td>
                                                 <td></td>
                                             </tr>
                                             <tr t-foreach="object.line_ids" t-as="l">
                                                 <td style="white-space:nowrap">
-                                                    <i t-if="l.type_view == 'init' and l.type == '1_init_line'" t-field="l.date"></i>
-                                                    <i t-if="l.type_view == 'init' and l.type == '0_init'">INIT</i>
-                                                    <strong t-if="l.type_view == 'total'">Total</strong>
-                                                    <span t-if="l.type_view == 'normal' and l.type == '2_line'" t-field="l.date"></span>
-                                                    <span t-if="l.type_view == 'normal' and l.type == '3_compact'">Compact</span>
+                                                    <i t-if="l.view_type == 'init' and l.line_type == '1_init_line'" t-field="l.date"></i>
+                                                    <i t-if="l.view_type == 'init' and l.line_type == '0_init'">INIT</i>
+                                                    <strong t-if="l.view_type == 'total'">Total</strong>
+                                                    <span t-if="l.view_type == 'normal' and l.line_type == '2_line'" t-field="l.date"></span>
+                                                    <span t-if="l.view_type == 'normal' and l.line_type == '3_compact'">Compact</span>
                                                 </td>
                                                 <td>
-                                                    <i t-if="l.type_view == 'init'" t-field="l.journal_id.code"></i>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.journal_id.code"></span>
+                                                    <i t-if="l.view_type == 'init'" t-field="l.journal_id.code"></i>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.journal_id.code"></span>
                                                 </td>
                                                 <td>
-                                                    <i t-if="l.type_view == 'init'" t-field="l.account_id.code"></i>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.account_id.code"></span>
+                                                    <i t-if="l.view_type == 'init'" t-field="l.account_id.code"></i>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.account_id.code"></span>
                                                 </td>
                                                 <td>
-                                                    <i t-if="l.type_view == 'init'" t-field="l.analytic_account_id"></i>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.analytic_account_id"></span>
+                                                    <i t-if="l.view_type == 'init'" t-field="l.analytic_account_id"></i>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.analytic_account_id"></span>
                                                 </td>
                                                 <td>
-                                                    <i t-if="l.type_view == 'init'" t-field="l.move_id"></i>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.move_id"></span>
+                                                    <i t-if="l.view_type == 'init'" t-field="l.move_id"></i>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.move_id"></span>
                                                 </td>
                                                 <td>
-                                                    <i t-if="l.type_view == 'init'" t-field="l.move_line_id.ref"></i>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.move_line_id.ref"></span>
+                                                    <i t-if="l.view_type == 'init'" t-field="l.move_line_id.ref"></i>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.move_line_id.ref"></span>
                                                 </td>
                                                 <td>
-                                                    <i t-if="l.type_view == 'init'" t-field="l.partner_id"></i>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.partner_id"></span>
+                                                    <i t-if="l.view_type == 'init'" t-field="l.partner_id"></i>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.partner_id"></span>
                                                 </td>
                                                 <td>
-                                                    <i t-if="l.type_view == 'init'" t-field="l.date_maturity"></i>
-                                                    <span t-if="l.type_view == 'normal'" t-field="l.date_maturity"></span>
+                                                    <i t-if="l.view_type == 'init'" t-field="l.date_maturity"></i>
+                                                    <span t-if="l.view_type == 'normal'" t-field="l.date_maturity"></span>
                                                 </td>
                                                 <td class="text-right">
-                                                    <div t-if="l.debit and l.type_view == 'normal'">
+                                                    <div t-if="l.debit and l.view_type == 'normal'">
                                                         <span t-field="l.debit"/></div>
-                                                    <div t-if="l.debit and l.type_view == 'init'">
+                                                    <div t-if="l.debit and l.view_type == 'init'">
                                                         <i t-field="l.debit"/></div>
-                                                    <div t-if="l.debit and l.type_view == 'total'">
+                                                    <div t-if="l.debit and l.view_type == 'total'">
                                                         <strong t-field="l.debit"/></div>
                                                 </td>
                                                 <td class="text-right">
-                                                    <div t-if="l.credit and l.type_view == 'normal'">
+                                                    <div t-if="l.credit and l.view_type == 'normal'">
                                                         <span t-field="l.credit"/></div>
-                                                    <div t-if="l.credit and l.type_view == 'init'">
+                                                    <div t-if="l.credit and l.view_type == 'init'">
                                                         <i t-field="l.credit"/></div>
-                                                    <div t-if="l.credit and l.type_view == 'total'">
+                                                    <div t-if="l.credit and l.view_type == 'total'">
                                                         <strong t-field="l.credit"/></div>
                                                 </td>
                                                 <td class="text-right" style="white-space:nowrap">
-                                                    <div t-if="l.type_view == 'normal'">
+                                                    <div t-if="l.view_type == 'normal'">
                                                         <span t-field="l.cumul_balance"/></div>
-                                                    <div t-if="l.type_view == 'init'">
+                                                    <div t-if="l.view_type == 'init'">
                                                         <i t-field="l.cumul_balance"/></div>
-                                                    <div t-if="l.type_view == 'total'">
+                                                    <div t-if="l.view_type == 'total'">
                                                         <strong t-field="l.cumul_balance"/></div>
                                                 </td>
                                                 <td class="text-right" style="white-space:nowrap" groups="base.group_multi_currency">
-                                                    <div t-if="l.type_view == 'normal' and l.amount_currency">
+                                                    <div t-if="l.view_type == 'normal' and l.amount_currency">
                                                         <span t-field="l.amount_currency"/>
                                                     </div>
                                                 </td>

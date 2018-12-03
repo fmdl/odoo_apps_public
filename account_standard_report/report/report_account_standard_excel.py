@@ -26,14 +26,14 @@ class StandardReportXlsx(models.AbstractModel):
         report = wizard.report_id
 
         def _get_data_float(data):
-            if data == None or data == False:
+            if data is None or not data:
                 return 0.0
             else:
                 return wizard.company_currency_id.round(data) + 0.0
 
         def get_date_format(date):
             if date:
-                date = datetime.strptime(date, DEFAULT_SERVER_DATE_FORMAT)
+                # date = datetime.strptime(date, DEFAULT_SERVER_DATE_FORMAT)
                 date = date.strftime(date_format)
             return date
 
@@ -51,7 +51,7 @@ class StandardReportXlsx(models.AbstractModel):
 
             sheet.write(2, 6, _('Only UnReconciled Entries') if wizard.reconciled is False else _('With Reconciled Entries'), bold)
 
-        if wizard.type_ledger == 'aged':
+        if wizard.ledger_type == 'aged':
 
             if wizard.summary:
                 sheet = workbook.add_worksheet(report.name)
@@ -388,7 +388,7 @@ class StandardReportXlsx(models.AbstractModel):
                     table.append(col)
 
                 def _set_line(line):
-                    sheet.write(i, 0, get_date_format(line.get('date', '')) if line.get('type_view') != 'init' else 'INIT')
+                    sheet.write(i, 0, get_date_format(line.get('date', '')) if line.get('view_type') != 'init' else 'INIT')
                     sheet.write(i, 1, line.get('j_code', ''))
                     sheet.write(i, 2, line.get('a_code', ''))
                     sheet.write(i, 3, line.get('a_name', ''))
@@ -428,13 +428,13 @@ class StandardReportXlsx(models.AbstractModel):
                     if lines_obj:
                         row += 1
                         name_view = ''
-                        if wizard.type == 'account':
+                        if wizard.report_type == 'account':
                             name_view = obj.account_id.display_name
-                        if wizard.type == 'partner':
+                        if wizard.report_type == 'partner':
                             name_view = obj.partner_id.display_name
-                        if wizard.type == 'journal':
+                        if wizard.report_type == 'journal':
                             name_view = obj.journal_id.display_name
-                        if wizard.type == 'analytic':
+                        if wizard.report_type == 'analytic':
                             name_view = obj.analytic_account_id.display_name
 
                         sheet.write(row, 0, name_view, left)
@@ -450,7 +450,8 @@ class StandardReportXlsx(models.AbstractModel):
                         sheet.write(row, 10, '', top)
                         sheet.write(row, 11, '', top)
                         sheet.write(row, 12, '', top)
-                        sheet.write(row, 13, '', right)
+                        sheet.write(row, 13, '', top)
+                        sheet.write(row, 14, '', right)
 
                         row += 2
                         start_row = row

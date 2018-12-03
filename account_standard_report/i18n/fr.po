@@ -55,7 +55,7 @@ msgstr ""
 "\n"
 
 #. module: account_standard_report
-#: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_type_ledger
+#: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_ledger_type
 msgid ""
 " * General Ledger : Journal entries group by account\n"
 " * Partner Leger : Journal entries group by partner, with only payable/recevable accounts\n"
@@ -254,7 +254,7 @@ msgid "Exclude"
 msgstr "Exclure"
 
 #. module: account_standard_report
-#: selection:account.report.standard.ledger,type_ledger:0
+#: selection:account.report.standard.ledger,ledger_type:0
 #: code:addons/account_standard_report/wizard/account_standard_report.py:9
 #, python-format
 msgid "General Ledger"
@@ -295,7 +295,7 @@ msgid "JRNL"
 msgstr "JRNL"
 
 #. module: account_standard_report
-#: selection:account.report.standard.ledger,type_ledger:0
+#: selection:account.report.standard.ledger,ledger_type:0
 #: code:addons/account_standard_report/wizard/account_standard_report.py:19
 #, python-format
 msgid "Journal Ledger"
@@ -369,7 +369,7 @@ msgstr ""
 " * Décocher pour voir seulement les écritures réconciliées. Doit être utiliser pour l’édition du livre des tiers.\n"
 
 #. module: account_standard_report
-#: selection:account.report.standard.ledger,type_ledger:0
+#: selection:account.report.standard.ledger,ledger_type:0
 #: code:addons/account_standard_report/wizard/account_standard_report.py:24
 #, python-format
 msgid "Open Ledger"
@@ -383,7 +383,7 @@ msgid "Partner"
 msgstr "Partenaire"
 
 #. module: account_standard_report
-#: selection:account.report.standard.ledger,type_ledger:0
+#: selection:account.report.standard.ledger,ledger_type:0
 #: code:addons/account_standard_report/wizard/account_standard_report.py:14
 #, python-format
 msgid "Partner Ledger"
@@ -529,7 +529,7 @@ msgid "Total"
 msgstr "Total"
 
 #. module: account_standard_report
-#: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_type_ledger
+#: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_ledger_type
 msgid "Type"
 msgstr "Type"
 

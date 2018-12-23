@@ -112,7 +112,7 @@ msgid "Account Standard Ledger"
 msgstr "Edition standard comptable"
 
 #. module: account_standard_report
-#: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_account_in_ex_clude
+#: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_account_in_ex_clude_ids
 msgid "Accounts"
 msgstr "Comptes"
 
@@ -268,7 +268,7 @@ msgid "ID"
 msgstr "ID"
 
 #. module: account_standard_report
-#: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_account_in_ex_clude
+#: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_account_in_ex_clude_ids
 msgid "If empty, get all accounts"
 msgstr "Si vide, tous les comptes comptables tiers seront pris"
 

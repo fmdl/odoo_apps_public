@@ -97,7 +97,7 @@ msgid "Account Standard Ledger"
 msgstr ""
 
 #. module: account_standard_report
-#: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_account_in_ex_clude
+#: model:ir.model.fields,field_description:account_standard_report.field_account_report_standard_ledger_account_in_ex_clude_ids
 msgid "Accounts"
 msgstr ""
 
@@ -253,7 +253,7 @@ msgid "ID"
 msgstr ""
 
 #. module: account_standard_report
-#: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_account_in_ex_clude
+#: model:ir.model.fields,help:account_standard_report.field_account_report_standard_ledger_account_in_ex_clude_ids
 msgid "If empty, get all accounts"
 msgstr ""
 

@@ -42,6 +42,11 @@ D_LEDGER = {'general': {'name': _('General Ledger'),
             }
 
 
+FIELDS_TEMPLATE = ['name', 'ledger_type', 'summary', 'amount_currency', 'reconciled', 'partner_select_ids',
+                   'account_methode', 'account_in_ex_clude_ids', 'analytic_account_select_ids', 'init_balance_history',
+                   'journal_ids', 'date_from', 'date_to', 'target_move', 'result_selection', 'compact_account', ]
+
+
 class AccountStandardLedgerPeriode(models.TransientModel):
     _name = 'account.report.standard.ledger.periode'
     _description = 'Account Standard Ledger Periode'
@@ -190,8 +195,8 @@ class AccountStandardLedger(models.TransientModel):
         domain=['|', ('is_company', '=', True), ('parent_id', '=', False)],
         help='If empty, get all partners')
     account_methode = fields.Selection([('include', 'Include'), ('exclude', 'Exclude')], string="Methode")
-    account_in_ex_clude = fields.Many2many(comodel_name='account.account', string='Accounts',
-                                           help='If empty, get all accounts')
+    account_in_ex_clude_ids = fields.Many2many(comodel_name='account.account', string='Accounts',
+                                               help='If empty, get all accounts')
     analytic_account_select_ids = fields.Many2many(comodel_name='account.analytic.account', string='Analytic Accounts')
     init_balance_history = fields.Boolean(
         'Initial balance with history.', default=True,
@@ -221,59 +226,60 @@ class AccountStandardLedger(models.TransientModel):
     result_selection = fields.Selection([('customer', 'Customers'),
                                          ('supplier', 'Suppliers'),
                                          ('customer_supplier', 'Customers and Suppliers')
-                                         ], string="Partners", required=True, default='supplier')
+                                         ], string="Partners Selection", required=True, default='supplier')
     report_name = fields.Char('Report Name')
     compact_account = fields.Boolean('Compacte account.', default=False)
     report_id = fields.Many2one('account.report.standard.ledger.report')
     account_ids = fields.Many2many('account.account', relation='table_standard_report_accounts')
-    partner_ids = fields.Many2many('res.partner', relation='table_standard_report_partner')
+    partner_ids = fields.Many2many('res.partner', string="Partners in report", relation='table_standard_report_partner')
     report_type = fields.Selection([('account', 'Account'), ('partner', 'Partner'), ('journal', 'Journal'),
                                     ('analytic', 'Analytic')], string='Report Type')
+    template_id = fields.Many2one('account.report.template', 'Template')
 
-    @api.onchange('account_in_ex_clude')
-    def _on_change_summary(self):
-        if self.account_in_ex_clude:
+    @api.onchange('account_in_ex_clude_ids')
+    def _onchange_account_in_ex_clude_ids(self):
+        if self.account_in_ex_clude_ids:
             self.account_methode = 'include'
         else:
             self.account_methode = False
 
     @api.onchange('ledger_type')
-    def _on_change_ledger_type(self):
+    def _onchange_ledger_type(self):
         if self.ledger_type in ('partner', 'journal', 'open', 'aged'):
             self.compact_account = False
         if self.ledger_type == 'aged':
             self.date_from = False
             self.reconciled = False
         else:
-            self._on_change_periode_date()
-            self._on_change_month_selec()
+            self._onchange_periode_date()
+            self._onchange_month_select()
         if self.ledger_type not in ('partner', 'aged',):
             self.reconciled = True
-            return {'domain': {'account_in_ex_clude': []}}
-        self.account_in_ex_clude = False
+            return {'domain': {'account_in_ex_clude_ids': []}}
+        self.account_in_ex_clude_ids = False
         if self.result_selection == 'supplier':
-            return {'domain': {'account_in_ex_clude': [('type_third_parties', '=', 'supplier')]}}
+            return {'domain': {'account_in_ex_clude_ids': [('type_third_parties', '=', 'supplier')]}}
         if self.result_selection == 'customer':
-            return {'domain': {'account_in_ex_clude': [('type_third_parties', '=', 'customer')]}}
-        return {'domain': {'account_in_ex_clude': [('type_third_parties', 'in', ('supplier', 'customer'))]}}
+            return {'domain': {'account_in_ex_clude_ids': [('type_third_parties', '=', 'customer')]}}
+        return {'domain': {'account_in_ex_clude_ids': [('type_third_parties', 'in', ('supplier', 'customer'))]}}
 
     @api.onchange('periode_date')
-    def _on_change_periode_date(self):
+    def _onchange_periode_date(self):
         if self.periode_date:
             self.date_from = self.periode_date.date_from
             self.date_to = self.periode_date.date_to
             if self.month_selec:
-                self._on_change_month_selec()
+                self._onchange_month_select()
 
     @api.onchange('month_selec')
-    def _on_change_month_selec(self):
+    def _onchange_month_select(self):
         if self.periode_date and self.month_selec:
             date_from = self.periode_date.date_from
             self.date_from = datetime(date_from.year, self.month_selec, 1).date()
             self.date_to = datetime(date_from.year, self.month_selec,
                                     calendar.monthrange(date_from.year, self.month_selec)[1]).date()
         elif self.periode_date and not self.month_selec:
-            self._on_change_periode_date()
+            self._onchange_periode_date()
 
     def action_view_lines(self):
         self.ensure_one()
@@ -938,13 +944,13 @@ class AccountStandardLedger(models.TransientModel):
                 acc_type = ('supplier', 'customer',)
             domain.append(('type_third_parties', 'in', acc_type))
 
-        account_in_ex_clude = self.account_in_ex_clude.ids
+        account_in_ex_clude_ids = self.account_in_ex_clude_ids.ids
         acc_methode = self.account_methode
-        if account_in_ex_clude:
+        if account_in_ex_clude_ids:
             if acc_methode == 'include':
-                domain.append(('id', 'in', account_in_ex_clude))
+                domain.append(('id', 'in', account_in_ex_clude_ids))
             elif acc_methode == 'exclude':
-                domain.append(('id', 'not in', account_in_ex_clude))
+                domain.append(('id', 'not in', account_in_ex_clude_ids))
         return self.env['account.account'].search(domain)
 
     def _search_analytic_account(self):
@@ -1056,3 +1062,34 @@ class AccountStandardLedger(models.TransientModel):
                 'age_120_days': self.company_currency_id.round(line.age_120_days) + 0.0,
                 'older': self.company_currency_id.round(line.older) + 0.0,
             })
+
+    @api.onchange('template_id')
+    def _onchange_template_id(self):
+        self.ensure_one()
+        if self.template_id:
+            for field in FIELDS_TEMPLATE:
+                value = self.template_id[field]
+                if value:
+                    self[field] = value
+
+    def action_save_template(self):
+        self.ensure_one()
+        if self.template_id:
+            for field in FIELDS_TEMPLATE:
+                if field in ('name',):
+                    continue
+                value = self[field]
+                if value:
+                    self.template_id[field] = value
+
+    def action_open_templates(self):
+        self.ensure_one()
+        return {
+            'name': _('Template of %s') % self.company_id.name,
+            'view_type': 'form',
+            'view_mode': 'tree,form',
+            'res_model': 'account.report.template',
+            'type': 'ir.actions.act_window',
+            'target': 'current',
+            'domain': [('company_id', '=', self.company_id.id)]
+        }

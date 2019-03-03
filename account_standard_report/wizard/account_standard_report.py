@@ -468,7 +468,8 @@ class AccountStandardLedger(models.TransientModel):
         """
 
         date_from_fiscal = self.company_id.compute_fiscalyear_dates(self.report_id.date_from)['date_from']
-
+        rouding = self.company_currency_id.rounding / 2
+        
         params = [
             # SELECT
             self.report_id.id,
@@ -485,8 +486,7 @@ class AccountStandardLedger(models.TransientModel):
             self.report_id.date_from,
             # HAVING
             self.init_balance_history,
-            self.company_currency_id.rounding, self.company_currency_id.rounding, self.company_currency_id.rounding,
-            self.company_currency_id.rounding,
+            rouding, rouding, rouding, rouding,
         ]
 
         self.env.cr.execute(query, tuple(params))
@@ -554,6 +554,7 @@ class AccountStandardLedger(models.TransientModel):
                 ELSE ABS(SUM(aml.debit)) > %s OR ABS(SUM(aml.debit)) > %s OR ABS(SUM(aml.balance)) > %s
             END
         """
+        rouding = self.company_currency_id.rounding / 2
 
         params = [
             # matching_in_futur
@@ -584,7 +585,7 @@ class AccountStandardLedger(models.TransientModel):
 
             # HAVING
             self.init_balance_history,
-            self.company_currency_id.rounding, self.company_currency_id.rounding, self.company_currency_id.rounding, self.company_currency_id.rounding,
+            rouding, rouding, rouding, rouding,
         ]
 
         self.env.cr.execute(query, tuple(params))

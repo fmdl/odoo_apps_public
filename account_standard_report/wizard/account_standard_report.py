@@ -2,7 +2,6 @@
 
 import calendar
 
-import odoo.addons.decimal_precision as dp
 from datetime import datetime, timedelta
 from odoo import api, models, fields, _
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT, DEFAULT_SERVER_DATETIME_FORMAT
@@ -44,7 +43,8 @@ D_LEDGER = {'general': {'name': _('General Ledger'),
 
 FIELDS_TEMPLATE = ['name', 'ledger_type', 'summary', 'amount_currency', 'reconciled', 'partner_select_ids',
                    'account_methode', 'account_in_ex_clude_ids', 'analytic_account_select_ids', 'init_balance_history',
-                   'journal_ids', 'date_from', 'date_to', 'target_move', 'result_selection', 'compact_account', ]
+                   'journal_ids', 'date_from', 'date_to', 'target_move', 'result_selection', 'compact_account',
+                   'account_group_ids']
 
 
 class AccountStandardLedgerPeriode(models.TransientModel):
@@ -104,7 +104,7 @@ class AccountStandardLedgerLines(models.TransientModel):
     age_60_days = fields.Monetary(default=0.0, currency_field='company_currency_id', string='60 days')
     age_90_days = fields.Monetary(default=0.0, currency_field='company_currency_id', string='90 days')
     age_120_days = fields.Monetary(default=0.0, currency_field='company_currency_id', string='120 days')
-    older = fields.Float(default=0.0, digits=dp.get_precision('Account'), string='Older')
+    older = fields.Monetary(default=0.0, currency_field='company_currency_id', string='Older')
 
     amount_currency = fields.Monetary(default=0.0, currency_field='currency_id', string='Amount Currency')
     currency_id = fields.Many2one('res.currency')
@@ -113,7 +113,8 @@ class AccountStandardLedgerLines(models.TransientModel):
 
     @api.model
     def read_group(self, domain, fields, groupby, offset=0, limit=None, orderby=False, lazy=True):
-        res = super(AccountStandardLedgerLines, self).read_group(domain, fields, groupby, offset, limit=limit, orderby=orderby, lazy=lazy)
+        res = super(AccountStandardLedgerLines, self).read_group(
+            domain, fields, groupby, offset, limit=limit, orderby=orderby, lazy=lazy)
         if 'cumul_balance' in fields and 'debit' in fields and 'credit' in fields:
             for line in res:
                 line['cumul_balance'] = line['debit'] - line['credit']
@@ -147,15 +148,14 @@ class AccountStandardLedger(models.TransientModel):
 
         company = self.env.user.company_id
         last_day = company.fiscalyear_last_day or 31
-        last_month = company.fiscalyear_last_month or 12
+        last_month = int(float(company.fiscalyear_last_month)) or 12
 
         periode_obj = self.env['account.report.standard.ledger.periode']
-        # periode_obj.search([]).unlink()
 
         for year in range(today_year, today_year - 4, -1):
             date_from = (datetime(year - 1, last_month, last_day) + timedelta(days=1)).date()
             date_to = datetime(year, last_month, last_day).date()
-            user_periode = "%s - %s" % (date_from.strftime(date_format),
+            user_periode = '%s - %s' % (date_from.strftime(date_format),
                                         date_to.strftime(date_format),
                                         )
             vals = {
@@ -198,6 +198,7 @@ class AccountStandardLedger(models.TransientModel):
     account_in_ex_clude_ids = fields.Many2many(comodel_name='account.account', string='Accounts',
                                                help='If empty, get all accounts')
     analytic_account_select_ids = fields.Many2many(comodel_name='account.analytic.account', string='Analytic Accounts')
+    account_group_ids = fields.Many2many(comodel_name='account.group', string='Accounts Group')
     init_balance_history = fields.Boolean(
         'Initial balance with history.', default=True,
         help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
@@ -218,10 +219,10 @@ class AccountStandardLedger(models.TransientModel):
                                     ], string='Target Moves', required=True, default='posted')
     periode_date = fields.Many2one('account.report.standard.ledger.periode', 'Periode',
                                    default=_get_periode_date, help="Auto complete Start and End date.")
-    month_selec = fields.Selection([(1, '01 Junary'), (2, '02 Febuary'), (3, '03 March'), (4, '04 April'),
-                                    (5, '05 May'), (6, '06 June'),
-                                    (7, '07 Jully'), (8, '08 August'), (9, '09 September'),
-                                    (10, '10 October'), (11, '11 November'), (12, '12 December')],
+    month_selec = fields.Selection([('1', '01 Junary'), ('2', '02 Febuary'), ('3', '03 March'), ('4', '04 April'),
+                                    ('5', '05 May'), ('6', '06 June'),
+                                    ('7', '07 Jully'), ('8', '08 August'), ('9', '09 September'),
+                                    ('10', '10 October'), ('11', '11 November'), ('12', '12 December')],
                                    string='Month')
     result_selection = fields.Selection([('customer', 'Customers'),
                                          ('supplier', 'Suppliers'),
@@ -231,7 +232,8 @@ class AccountStandardLedger(models.TransientModel):
     compact_account = fields.Boolean('Compacte account.', default=False)
     report_id = fields.Many2one('account.report.standard.ledger.report')
     account_ids = fields.Many2many('account.account', relation='table_standard_report_accounts')
-    partner_ids = fields.Many2many('res.partner', string="Partners in report", relation='table_standard_report_partner')
+    partner_ids = fields.Many2many('res.partner', string="Partners in report",
+                                   relation='table_standard_report_partner')
     report_type = fields.Selection([('account', 'Account'), ('partner', 'Partner'), ('journal', 'Journal'),
                                     ('analytic', 'Analytic')], string='Report Type')
     template_id = fields.Many2one('account.report.template', 'Template')
@@ -275,9 +277,9 @@ class AccountStandardLedger(models.TransientModel):
     def _onchange_month_select(self):
         if self.periode_date and self.month_selec:
             date_from = self.periode_date.date_from
-            self.date_from = datetime(date_from.year, self.month_selec, 1).date()
-            self.date_to = datetime(date_from.year, self.month_selec,
-                                    calendar.monthrange(date_from.year, self.month_selec)[1]).date()
+            self.date_from = datetime(date_from.year, float(self.month_selec), 1).date()
+            self.date_to = datetime(date_from.year, float(self.month_selec),
+                                    calendar.monthrange(date_from.year, float(self.month_selec))[1]).date()
         elif self.periode_date and not self.month_selec:
             self._onchange_periode_date()
 
@@ -304,6 +306,7 @@ class AccountStandardLedger(models.TransientModel):
     def print_excel_report(self):
         self.ensure_one()
         self._compute_data()
+        print(self.env.ref('account_standard_report.action_standard_excel').report_action(self))
         return self.env.ref('account_standard_report.action_standard_excel').report_action(self)
 
     def _pre_compute(self):
@@ -358,8 +361,10 @@ class AccountStandardLedger(models.TransientModel):
 
         # complet total line
         line_obj = self.env['account.report.standard.ledger.line']
-        self.report_id.line_total_ids = line_obj.search([('report_id', '=', self.report_id.id), ('line_type', '=', '4_total')])
-        self.report_id.line_super_total_id = line_obj.search([('report_id', '=', self.report_id.id), ('line_type', '=', '5_super_total')], limit=1)
+        self.report_id.line_total_ids = line_obj.search(
+            [('report_id', '=', self.report_id.id), ('line_type', '=', '4_total')])
+        self.report_id.line_super_total_id = line_obj.search(
+            [('report_id', '=', self.report_id.id), ('line_type', '=', '5_super_total')], limit=1)
         self._format_total()
 
     def _sql_report_object(self):
@@ -422,11 +427,13 @@ class AccountStandardLedger(models.TransientModel):
 
     def _sql_unaffected_earnings(self):
         company = self.company_id
-        unaffected_earnings_account = self.env['account.account'].search([('company_id', '=', company.id), ('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
+        unaffected_earnings_account = self.env['account.account'].search(
+            [('company_id', '=', company.id), ('user_type_id', '=', self.env.ref('account.data_unaffected_earnings').id)], limit=1)
         if unaffected_earnings_account not in self.account_ids:
             return
 
-        report_object_id = self.report_id.report_object_ids.filtered(lambda x: x.object_id == unaffected_earnings_account.id)
+        report_object_id = self.report_id.report_object_ids.filtered(
+            lambda x: x.object_id == unaffected_earnings_account.id)
         if not report_object_id:
             report_object_id = self.report_id.report_object_ids.create({'report_id': self.report_id.id,
                                                                         'object_id': unaffected_earnings_account.id,
@@ -469,7 +476,7 @@ class AccountStandardLedger(models.TransientModel):
 
         date_from_fiscal = self.company_id.compute_fiscalyear_dates(self.report_id.date_from)['date_from']
         rouding = self.company_currency_id.rounding / 2
-        
+
         params = [
             # SELECT
             self.report_id.id,
@@ -952,6 +959,8 @@ class AccountStandardLedger(models.TransientModel):
                 domain.append(('id', 'in', account_in_ex_clude_ids))
             elif acc_methode == 'exclude':
                 domain.append(('id', 'not in', account_in_ex_clude_ids))
+        if self.account_group_ids:
+            domain.append(('group_id', 'child_of', self.account_group_ids.ids))
         return self.env['account.account'].search(domain)
 
     def _search_analytic_account(self):

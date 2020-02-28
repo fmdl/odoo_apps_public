@@ -7,9 +7,9 @@ from odoo import models, _
 class StandardReportXlsx(models.AbstractModel):
     _name = 'report.account_standard_report.report_account_standard_excel'
     _inherit = 'report.report_xlsx.abstract'
+    _description = 'Standard Report Excel'
 
     def generate_xlsx_report(self, workbook, data, wizard):
-
         num_format = wizard.company_currency_id.excel_format
         bold = workbook.add_format({'bold': True})
         middle = workbook.add_format({'bold': True, 'top': 1})

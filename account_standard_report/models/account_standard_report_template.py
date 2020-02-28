@@ -37,6 +37,7 @@ class AccountStandardLedger(models.Model):
     account_methode = fields.Selection([('include', 'Include'), ('exclude', 'Exclude')], string="Methode")
     account_in_ex_clude_ids = fields.Many2many(comodel_name='account.account', string='Accounts',
                                                help='If empty, get all accounts')
+    account_group_ids = fields.Many2many(comodel_name='account.group', string='Accounts Group')
     analytic_account_select_ids = fields.Many2many(comodel_name='account.analytic.account', string='Analytic Accounts')
     init_balance_history = fields.Boolean(
         'Initial balance with history.', default=True,

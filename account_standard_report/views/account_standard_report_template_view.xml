@@ -36,6 +36,9 @@
                     <field name="account_methode" attrs="{'invisible':[('account_in_ex_clude_ids', '=', [])]}"/>
                 </group>
                 <group col="3">
+                    <field name="account_group_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                </group>
+                <group col="3">
                     <field name="analytic_account_select_ids" widget="many2many_tags" options="{'no_create': True}" attrs="{'invisible': [('ledger_type', '!=', 'analytic')]}"/>
                 </group>
                 <group col="4">
@@ -64,7 +67,6 @@
         <field name="name">Standard Report</field>
         <field name="type">ir.actions.act_window</field>
         <field name="res_model">account.report.template</field>
-        <field name="view_type">form</field>
         <field name="view_mode">tree,form</field>
         <field name="target">current</field>
     </record>

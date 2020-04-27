@@ -395,7 +395,7 @@ class AccountStandardLedger(models.TransientModel):
                 LEFT JOIN account_account acc ON (acc.id = aml.account_id)
                 LEFT JOIN res_partner rep ON (rep.id = aml.partner_id)
                 LEFT JOIN account_journal acj ON (acj.id = aml.journal_id)
-                LEFT JOIN account_analytic_account an_acc ON (acj.id = aml.analytic_account_id)
+                LEFT JOIN account_analytic_account an_acc ON (an_acc.id = aml.analytic_account_id)
             WHERE
                 aml.company_id = %s
                 AND aml.journal_id IN %s

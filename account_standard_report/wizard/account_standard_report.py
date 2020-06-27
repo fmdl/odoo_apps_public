@@ -202,7 +202,7 @@ class AccountStandardLedger(models.TransientModel):
         'Initial balance with history.', default=True,
         help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
         ' * Uncheck this box to report only the balance before the Start Date\n')
-    company_id = fields.Many2one('res.company', string='Company', readonly=True,
+    company_id = fields.Many2one('res.company', string='Company',
                                  default=lambda self: self.env.user.company_id)
     company_currency_id = fields.Many2one('res.currency', related='company_id.currency_id',
                                           string="Company Currency", readonly=True,

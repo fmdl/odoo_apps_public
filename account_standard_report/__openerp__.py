@@ -21,5 +21,6 @@
     'price': 0.0,
     'currency': 'EUR',
     'installable': True,
+    'license': 'AGPL-3',
     'images': ['images/main_screenshot.png'],
 }

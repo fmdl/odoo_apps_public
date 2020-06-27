@@ -22,6 +22,7 @@
     'installable': True,
     'auto_install': False,
     'price': 0.0,
+    'license':'AGPL-3',
     'currency': 'EUR',
     'images': ['images/main_screenshot.png'],
 }

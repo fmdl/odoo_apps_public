@@ -21,7 +21,7 @@
         'wizard/account_standard_report_view.xml',
     ],
     'demo': [],
-    'license': 'LGPL-3',
+    'license': 'AGPL-3',
     'support': 'https://github.com/fmdl',
     'installable': True,
     'auto_install': False,

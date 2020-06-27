@@ -20,6 +20,7 @@
     ],
     'demo': [],
     'installable': True,
+    'license': 'AGPL-3',
     'auto_install': False,
     'images': ['images/main_screenshot.png'],
 }

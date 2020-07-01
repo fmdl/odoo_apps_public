@@ -53,7 +53,10 @@ class SmsApi(models.AbstractModel):
                             application_key=account.ovh_application_key,
                             application_secret=account.ovh_application_secret,
                             consumer_key=account.ovh_consumer_key,)
-        url = '/sms/%s/jobs/' % account.ovh_sms_account
+        if account.ovh_sms_api_user:
+            url = '/sms/%s/users/%s/jobs/' % (account.ovh_sms_account, account.ovh_sms_api_user)
+        else:
+            url = '/sms/%s/jobs/' % account.ovh_sms_account
         result_send = client.post(url,
                                   charset='UTF-8',
                                   coding='7bit',

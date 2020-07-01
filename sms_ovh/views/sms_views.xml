@@ -12,6 +12,7 @@
                     <field name="ovh_application_secret"/>
                     <field name="ovh_consumer_key"/>
                     <field name="ovh_sms_account"/>
+                    <field name="ovh_sms_api_user"/>
                     <field name="ovh_sender"/>
                 </group>
             </xpath>

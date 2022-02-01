@@ -30,7 +30,7 @@ class AccountStandardLedger(models.Model):
         help='Only for entrie with a payable/receivable account.\n'
         ' * Check this box to see un-reconcillied and reconciled entries with payable.\n'
         ' * Uncheck to see only un-reconcillied entries. Can be use only with parnter ledger.\n')
-    partner_select_ids = fields.Many2many(
+    partner_ids = fields.Many2many(
         comodel_name='res.partner', string='Partners',
         domain=['|', ('is_company', '=', True), ('parent_id', '=', False)],
         help='If empty, get all partners')
@@ -38,7 +38,7 @@ class AccountStandardLedger(models.Model):
     account_in_ex_clude_ids = fields.Many2many(comodel_name='account.account', string='Accounts',
                                                help='If empty, get all accounts')
     account_group_ids = fields.Many2many(comodel_name='account.group', string='Accounts Group')
-    analytic_account_select_ids = fields.Many2many(comodel_name='account.analytic.account', string='Analytic Accounts')
+    analytic_account_ids = fields.Many2many(comodel_name='account.analytic.account', string='Analytic Accounts')
     init_balance_history = fields.Boolean(
         'Initial balance with history.', default=True,
         help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'

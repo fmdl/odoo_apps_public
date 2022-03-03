@@ -33,9 +33,9 @@
                 <field name="line_type"/>
                 <field name="date"/>
                 <field name="partner_id"/>
-                <!-- <field name="account_id"/> -->
+                <field name="account_id" optional="hide"/>
                 <field name="move_id"/>
-                <!-- <field name="move_line_id"/> -->
+                <field name="move_line_id" optional="hide"/>
                 <field name="date_maturity"/>
                 <field name="current" sum="Total" attrs="{'invisible':[('current','=',0)]}"/>
                 <field name="age_30_days" sum="Total" attrs="{'invisible':[('age_30_days','=',0)]}"/>
@@ -44,7 +44,7 @@
                 <field name="age_120_days" sum="Total" attrs="{'invisible':[('age_120_days','=',0)]}"/>
                 <field name="older" sum="Total" attrs="{'invisible':[('older','=',0)]}"/>
                 <field name="balance" sum="Total"/>
-                <!-- <field name="cumul_balance"/> -->
+                <field name="cumul_balance" optional="hide"/>
                 <field name="full_reconcile_id"/>
                 <field name="reconciled"/>
             </tree>
@@ -55,7 +55,7 @@
         <field name="name">account.report.standard.ledger.line.form</field>
         <field name="model">account.report.standard.ledger.line</field>
         <field name="arch" type="xml">
-            <form string="Journal Item">
+            <form>
                 <sheet>
                     <group>
                         <group>
@@ -107,8 +107,8 @@
         <field name="name">account.report.standard.ledger.line.search</field>
         <field name="model">account.report.standard.ledger.line</field>
         <field name="arch" type="xml">
-            <search string="Journal Items">
-                <!-- <field name="move_id" filter_domain="['|', ('move_id','ilike',self)]" string="Move"/>
+            <search>
+                <field name="move_id" filter_domain="[('move_id','ilike',self)]" string="Move"/>
                 <field name="date"/>
                 <field name="account_id"/>
                 <field name="analytic_account_id"/>
@@ -116,7 +116,7 @@
                 <field name="journal_id"/>
                 <field name="line_type"/>
                 <separator/>
-                <filter string="Unposted" domain="[('move_id.state','=','draft')]" help="Unposted Journal Items"/>
+                <filter string="Unposted" name="unposted" domain="[('move_id.state','=','draft')]" help="Unposted Journal Items"/>
                 <filter name="posted" string="Posted" domain="[('move_id.state','=','posted')]" help="Posted Journal Items"/>
                 <separator/>
                 <filter string="Unreconciled" domain="[('full_reconcile_id', '=', False), ('balance','!=', 0), ('account_id.reconcile','=',True)]" help="Journal items where matching number isn't set" name="unreconciled"/>
@@ -129,7 +129,7 @@
                 <filter string="Journal" context="{'group_by':'journal_id'}" name="journal"/>
                 <filter string="Open" context="{'group_by':'account_id'}" name="open"/>
                 <filter string="Aged Balance" context="{'group_by':'partner_id'}" name="aged"/>
-                <filter string="Analytic" context="{'group_by':'analytic_account_id'}" name="analytic"/> -->
+                <filter string="Analytic" context="{'group_by':'analytic_account_id'}" name="analytic"/>
             </search>
         </field>
     </record>

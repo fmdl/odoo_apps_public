@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from datetime import datetime
-from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
 from odoo import models, _
 
 
@@ -33,7 +30,6 @@ class StandardReportXlsx(models.AbstractModel):
 
         def get_date_format(date):
             if date:
-                # date = datetime.strptime(date, DEFAULT_SERVER_DATE_FORMAT)
                 date = date.strftime(date_format)
             return date
 
@@ -256,10 +252,6 @@ class StandardReportXlsx(models.AbstractModel):
                 sheet = workbook.add_worksheet(report.name)
                 _header_sheet(sheet)
 
-                # for group_by in data['group_by_data']['ids']:
-                #     for line in data['lines_group_by'][group_by]['new_lines']:
-                #         if line['type_line'] != 'total':
-                #             all_lines.append(line)
                 # Head
                 if all_lines:
                     row = 6
@@ -282,8 +274,6 @@ class StandardReportXlsx(models.AbstractModel):
                 _header_sheet(sheet)
 
                 all_lines = wizard._sql_get_line_for_report(type_l=('4_total',))
-                # for group_by in data['group_by_data']['ids']:
-                #     all_lines.append(data['lines_group_by'][group_by])
                 if all_lines:
                     # Head
                     head = [

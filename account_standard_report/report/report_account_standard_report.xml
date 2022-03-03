@@ -8,15 +8,15 @@
                     <div class="page" style="font-size:11px">
                         <h2 t-field="o.report_id.name"/>
                         <div class="row">
-                            <div class="col-xs-2">
+                            <div class="col-2">
                                 <strong>Company:</strong>
                                 <p t-field="o.company_id"/>
                             </div>
-                            <div class="col-xs-2">
+                            <div class="col-2">
                                 <strong>Devise:</strong>
                                 <p t-field="o.company_currency_id"/>
                             </div>
-                            <div class="col-xs-2">
+                            <div class="col-2">
                                 <t t-if="o.date_from">
                                     <strong>Start Date :</strong>
                                     <span t-field="o.date_from"/><br/></t>
@@ -24,12 +24,12 @@
                                     <strong>End Date :</strong>
                                     <span t-field="o.date_to"/></t>
                             </div>
-                            <div class="col-xs-3">
+                            <div class="col-3">
                                 <strong>Target Moves:</strong>
                                 <p t-if="o.target_move == 'all'">All Entries</p>
                                 <p t-if="o.target_move == 'posted'">All Posted Entries</p>
                             </div>
-                            <div class="col-xs-3">
+                            <div class="col-3">
                                 <strong t-if="o.reconciled == True">With Reconciled Entries</strong>
                                 <strong t-if="o.reconciled == False">Only UnReconciled Entries</strong>
                             </div>
@@ -39,15 +39,15 @@
                             <table class="table table-condensed">
                                 <thead>
                                     <tr>
-                                        <th class="col-xs-1">Total</th>
+                                        <th >Total</th>
                                         <th></th>
-                                        <th class="col-xs-1 text-right">Not Due</th>
-                                        <th class="col-xs-1 text-right">0-30</th>
-                                        <th class="col-xs-1 text-right">30-60</th>
-                                        <th class="col-xs-1 text-right">60-90</th>
-                                        <th class="col-xs-1 text-right">90-120</th>
-                                        <th class="col-xs-1 text-right">Older</th>
-                                        <th class="col-xs-1 text-right">Total</th>
+                                        <th class="text-right">Not Due</th>
+                                        <th class="text-right">0-30</th>
+                                        <th class="text-right">30-60</th>
+                                        <th class="text-right">60-90</th>
+                                        <th class="text-right">90-120</th>
+                                        <th class="text-right">Older</th>
+                                        <th class="text-right">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody style="white-space:nowrap">
@@ -80,20 +80,19 @@
                                 <table class="table table-condensed">
                                     <thead>
                                         <tr>
-                                            <th class="col-xs-1">Date</th>
-                                            <th class="col-xs-1">JRNL</th>
-                                            <th class="col-xs-1">Account</th>
-                                            <th class="col-xs-1">Journal entries</th>
-                                            <!-- <th class="col-xs-3">Ref</th> -->
-                                            <th class="col-xs-1">Due Date</th>
-                                            <th class="col-xs-1 text-right">Not Due</th>
-                                            <th class="col-xs-1 text-right">0-30</th>
-                                            <th class="col-xs-1 text-right">30-60</th>
-                                            <th class="col-xs-1 text-right">60-90</th>
-                                            <th class="col-xs-1 text-right">90-120</th>
-                                            <th class="col-xs-1 text-right">Older</th>
-                                            <th class="col-xs-1 text-right">Total</th>
-                                            <th class="col-xs-1">Match.</th>
+                                            <th >Date</th>
+                                            <th >JRNL</th>
+                                            <th >Account</th>
+                                            <th >Journal entries</th>
+                                            <th >Due Date</th>
+                                            <th class="text-right">Not Due</th>
+                                            <th class="text-right">0-30</th>
+                                            <th class="text-right">30-60</th>
+                                            <th class="text-right">60-90</th>
+                                            <th class="text-right">90-120</th>
+                                            <th class="text-right">Older</th>
+                                            <th class="text-right">Total</th>
+                                            <th >Match.</th>
                                         </tr>
                                     </thead>
                                     <t t-foreach="o.report_id.report_object_ids" t-as="object">
@@ -188,14 +187,14 @@
                                 <table class="table table-condensed">
                                     <thead>
                                         <tr>
-                                            <th class="col-xs-1">Partner</th>
-                                            <th class="col-xs-1 text-right">Not Due</th>
-                                            <th class="col-xs-1 text-right">0-30</th>
-                                            <th class="col-xs-1 text-right">30-60</th>
-                                            <th class="col-xs-1 text-right">60-90</th>
-                                            <th class="col-xs-1 text-right">90-120</th>
-                                            <th class="col-xs-1 text-right">Older</th>
-                                            <th class="col-xs-1 text-right">Total</th>
+                                            <th >Partner</th>
+                                            <th class="text-right">Not Due</th>
+                                            <th class="text-right">0-30</th>
+                                            <th class="text-right">30-60</th>
+                                            <th class="text-right">60-90</th>
+                                            <th class="text-right">90-120</th>
+                                            <th class="text-right">Older</th>
+                                            <th class="text-right">Total</th>
                                         </tr>
                                     </thead>
                                     <t t-foreach="o.report_id.line_total_ids" t-as="l">
@@ -234,11 +233,11 @@
                             <table class="table table-condensed">
                                 <thead>
                                     <tr>
-                                        <th class="col-xs-1">Total</th>
+                                        <th >Total</th>
                                         <th></th>
-                                        <th class="col-xs-1 text-right">Debit</th>
-                                        <th class="col-xs-1 text-right">Credit</th>
-                                        <th class="col-xs-1 text-right">Balance</th>
+                                        <th class="text-right">Debit</th>
+                                        <th class="text-right">Credit</th>
+                                        <th class="text-right">Balance</th>
                                     </tr>
                                 </thead>
                                 <tbody style="white-space:nowrap">
@@ -259,13 +258,13 @@
                                 <table class="table table-condensed">
                                     <thead>
                                         <tr>
-                                            <th class="col-xs-1" t-if="o.report_type == 'journal'">JRNL</th>
-                                            <th class="col-xs-1" t-if="o.report_type == 'account'">Account</th>
-                                            <th class="col-xs-1" t-if="o.report_type == 'partner'">Partner</th>
-                                            <th class="col-xs-1" t-if="o.report_type == 'analytic'">Analytic</th>
-                                            <th class="col-xs-1 text-right">Debit</th>
-                                            <th class="col-xs-1 text-right">Credit</th>
-                                            <th class="col-xs-1 text-right">Balance</th>
+                                            <th  t-if="o.report_type == 'journal'">JRNL</th>
+                                            <th  t-if="o.report_type == 'account'">Account</th>
+                                            <th  t-if="o.report_type == 'partner'">Partner</th>
+                                            <th  t-if="o.report_type == 'analytic'">Analytic</th>
+                                            <th class="text-right">Debit</th>
+                                            <th class="text-right">Credit</th>
+                                            <th class="text-right">Balance</th>
                                         </tr>
                                     </thead>
                                     <t t-foreach="o.report_id.line_total_ids" t-as="l">
@@ -303,19 +302,19 @@
                                 <table class="table table-condensed">
                                     <thead>
                                         <tr>
-                                            <th class="col-xs-1">Date</th>
-                                            <th class="col-xs-1">JRNL</th>
-                                            <th class="col-xs-1">Account</th>
-                                            <th class="col-xs-1">Analytic</th>
-                                            <th class="col-xs-1">Journal entries</th>
-                                            <th class="col-xs-3">Ref</th>
-                                            <th class="col-xs-3">Partner</th>
-                                            <th class="col-xs-1">Due Date</th>
-                                            <th class="col-xs-1 text-right">Debit</th>
-                                            <th class="col-xs-1 text-right">Credit</th>
-                                            <th class="col-xs-1 text-right">Balance</th>
-                                            <th class="col-xs-1 text-right" groups="base.group_multi_currency">Ammount Currency</th>
-                                            <th class="col-xs-1">Match.</th>
+                                            <th >Date</th>
+                                            <th >JRNL</th>
+                                            <th >Account</th>
+                                            <th >Analytic</th>
+                                            <th >Journal entries</th>
+                                            <th class="col-3">Ref</th>
+                                            <th class="col-3">Partner</th>
+                                            <th >Due Date</th>
+                                            <th class="text-right">Debit</th>
+                                            <th class="text-right">Credit</th>
+                                            <th class="text-right">Balance</th>
+                                            <th class="text-right" groups="base.group_multi_currency">Ammount Currency</th>
+                                            <th >Match.</th>
                                         </tr>
                                     </thead>
                                     <t t-foreach="o.report_id.report_object_ids" t-as="object">

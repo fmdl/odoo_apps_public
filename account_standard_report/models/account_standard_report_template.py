@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from odoo import api, models, fields, _
 
 
@@ -34,9 +32,8 @@ class AccountStandardLedger(models.Model):
         comodel_name='res.partner', string='Partners',
         domain=['|', ('is_company', '=', True), ('parent_id', '=', False)],
         help='If empty, get all partners')
-    account_methode = fields.Selection([('include', 'Include'), ('exclude', 'Exclude')], string="Methode")
-    account_in_ex_clude_ids = fields.Many2many(comodel_name='account.account', string='Accounts',
-                                               help='If empty, get all accounts')
+    account_select_ids = fields.Many2many(comodel_name='account.account', string='Accounts', check_company=True,
+                                          help='If empty, get all accounts')
     account_group_ids = fields.Many2many(comodel_name='account.group', string='Accounts Group')
     analytic_account_ids = fields.Many2many(comodel_name='account.analytic.account', string='Analytic Accounts')
     init_balance_history = fields.Boolean(
@@ -44,13 +41,11 @@ class AccountStandardLedger(models.Model):
         help=' * Check this box if you need to report all the debit and the credit sum before the Start Date.\n'
         ' * Uncheck this box to report only the balance before the Start Date\n')
     company_id = fields.Many2one('res.company', string='Company', readonly=True,
-                                 default=lambda self: self.env.user.company_id)
+                                 default=lambda self: self.env.company)
     company_currency_id = fields.Many2one('res.currency', related='company_id.currency_id',
                                           string="Company Currency", readonly=True,
                                           help='Utility field to express amount currency', store=True)
-    journal_ids = fields.Many2many('account.journal', string='Journals', required=True,
-                                   default=lambda self: self.env['account.journal'].search(
-                                       [('company_id', '=', self.env.user.company_id.id)]),
+    journal_ids = fields.Many2many('account.journal', string='Journals', check_company=True,
                                    help='Select journal, for the Open Ledger you need to set all journals.')
     date_from = fields.Date(string='Start Date', help='Use to compute initial balance.')
     date_to = fields.Date(string='End Date', help='Use to compute the entrie matched with futur.')
@@ -64,13 +59,6 @@ class AccountStandardLedger(models.Model):
     report_name = fields.Char('Report Name')
     compact_account = fields.Boolean('Compacte account.', default=False)
 
-    @api.onchange('account_in_ex_clude_ids')
-    def _onchange_account_in_ex_clude_ids(self):
-        if self.account_in_ex_clude_ids:
-            self.account_methode = 'include'
-        else:
-            self.account_methode = False
-
     @api.onchange('ledger_type')
     def _onchange_ledger_type(self):
         if self.ledger_type in ('partner', 'journal', 'open', 'aged'):
@@ -80,10 +68,3 @@ class AccountStandardLedger(models.Model):
             self.reconciled = False
         if self.ledger_type not in ('partner', 'aged',):
             self.reconciled = True
-            return {'domain': {'account_in_ex_clude_ids': []}}
-        self.account_in_ex_clude_ids = False
-        if self.result_selection == 'supplier':
-            return {'domain': {'account_in_ex_clude_ids': [('type_third_parties', '=', 'supplier')]}}
-        if self.result_selection == 'customer':
-            return {'domain': {'account_in_ex_clude_ids': [('type_third_parties', '=', 'customer')]}}
-        return {'domain': {'account_in_ex_clude_ids': [('type_third_parties', 'in', ('supplier', 'customer'))]}}

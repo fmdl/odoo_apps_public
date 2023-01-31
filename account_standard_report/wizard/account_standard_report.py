@@ -399,6 +399,7 @@ class AccountStandardLedger(models.TransientModel):
             'account_ids': tuple(self.account_ids.ids) if self.account_ids else (None,),
         }
         self.env.cr.execute(query, params)
+        self.report_id.invalidate_cache(['report_object_ids'], self.report_id.ids)
 
     def _sql_unaffected_earnings(self):
         company = self.company_id
@@ -408,7 +409,7 @@ class AccountStandardLedger(models.TransientModel):
             return
 
         report_object = self.report_id.report_object_ids.filtered(
-            lambda x: x.object_id == unaffected_earnings_account.id)
+            lambda x: x.object_id == unaffected_earnings_account.id and x.account_id == unaffected_earnings_account)
         if not report_object:
             report_object = self.report_id.report_object_ids.create({'report_id': self.report_id.id,
                                                                      'object_id': unaffected_earnings_account.id,
@@ -424,7 +425,7 @@ class AccountStandardLedger(models.TransientModel):
             %(unaffected_earnings_account)s AS account_id,
             '0_init' AS line_type,
             'init' AS view_type,
-            %(date_from_fiscal)s AS date,
+            %(date_from)s AS date,
             CASE WHEN %(init_balance_history)s THEN COALESCE(SUM(aml.debit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) <= 0 THEN 0 ELSE COALESCE(SUM(aml.balance), 0) END END AS debit,
             CASE WHEN %(init_balance_history)s THEN COALESCE(SUM(aml.credit), 0) ELSE CASE WHEN COALESCE(SUM(aml.balance), 0) >= 0 THEN 0 ELSE COALESCE(-SUM(aml.balance), 0) END END AS credit,
             COALESCE(SUM(aml.balance), 0) AS balance,
@@ -450,14 +451,12 @@ class AccountStandardLedger(models.TransientModel):
         #     WHEN %(init_balance_history)s = FALSE THEN ABS(SUM(aml.balance)) > %(rounding)s
         #     ELSE ABS(SUM(aml.debit)) > %(rounding)s OR ABS(SUM(aml.debit)) > %(rounding)s OR ABS(SUM(aml.balance)) > %(rounding)s
         # END
-        date_from_fiscal = self.company_id.compute_fiscalyear_dates(self.report_id.date_from)['date_from']
         rounding = self.company_currency_id.rounding / 2
 
         params = {
             'report_id': self.report_id.id,
             'uid': self.env.uid,
             'unaffected_earnings_account': unaffected_earnings_account.id,
-            'date_from_fiscal': date_from_fiscal,
             'init_balance_history': self.init_balance_history,
             'company_currency_id': self.company_currency_id.id,
             'report_object_id': report_object.id,
